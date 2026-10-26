@@ -1,0 +1,49 @@
+name: tests
+
+# main содержит только каркас (заглушки), поэтому там тесты заведомо красные.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches-ignore: [main]
+
+jobs:
+  level:
+    # Отдельная проверка на каждый уровень: сразу видно, какие уже зелёные.
+    name: ${{ matrix.test }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: MutexTest
+            stress: mutex
+          - test: OneShotLatchTest
+            stress: latch
+          - test: SimpleSemaphoreTest
+            stress: semaphore
+          - test: SimpleReentrantLockTest
+            stress: reentrant
+          - test: SimpleReadWriteLockTest
+            stress: rwlock
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: JUnit
+        run: ./mvnw -B -pl core test -Dtest=${{ matrix.test }}
+
+      - name: Build jcstress jar
+        run: ./mvnw -B -pl stress -am package -DskipTests
+
+      - name: jcstress (sanity)
+        run: |
+          java -jar stress/target/jcstress.jar -t aqs.practice.stress.${{ matrix.stress }} -m sanity | tee jcstress.log
+          # jcstress не меняет код выхода при падениях, поэтому проверяем итог по логу
+          grep -q "Failed tests: No matches" jcstress.log
+          grep -q "Error tests: No matches" jcstress.log
