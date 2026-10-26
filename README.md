@@ -1,130 +1,64 @@
 # AQS practice
 
-Тренажёр по статье Дага Лиа *The java.util.concurrent Synchronizer Framework* (2004):
-пишем свои синхронизаторы поверх **готового** `AbstractQueuedSynchronizer` и проверяем их
-JUnit-тестами (семантика) и [jcstress](https://github.com/openjdk/jcstress) (конкурентность).
+Exercises for Doug Lea's paper *The java.util.concurrent Synchronizer Framework* (2004):
+implement synchronizers on top of the JDK's `AbstractQueuedSynchronizer` and check them with
+JUnit (semantics) and [jcstress](https://github.com/openjdk/jcstress) (concurrency).
 
-В `main` лежит только каркас: публичный API, контракт в javadoc и тесты.
-Реализации нет — её пишет каждый сам в своей ветке.
+`main` contains only the skeleton: public API, contracts in javadoc, and tests. Implementations live in personal branches.
 
-## Порядок уровней
+## Levels
 
-Каждый уровень добавляет одну новую идею AQS. Идите по порядку.
-
-| Уровень | Класс | Что тренирует |
+| Level | Class | Focus |
 |---|---|---|
-| 1 | `Mutex` | exclusive-режим: `tryAcquire`/`tryRelease`, владелец, `isHeldExclusively`, `ConditionObject` |
-| 2 | `OneShotLatch` | shared-режим без счётчика: acquire, который ничего не захватывает, а ждёт условия |
-| 3 | `SimpleSemaphore` | shared со счётчиком: CAS-цикл, смысл возвращаемого значения `tryAcquireShared`, fair/nonfair как два подкласса |
-| 4 | `SimpleReentrantLock` | рекурсия через `state`, аргумент `acquires`, `Condition` при многократном захвате |
-| 5 | `SimpleReadWriteLock` | один `int state` на два режима сразу, защита писателя от голодания |
+| 1 | `Mutex` | exclusive mode, owner, `isHeldExclusively`, `ConditionObject` |
+| 2 | `OneShotLatch` | shared mode where acquire waits for a condition instead of taking anything |
+| 3 | `SimpleSemaphore` | shared mode with a count, CAS loop, `tryAcquireShared` return value, fair/nonfair subclasses |
+| 4 | `SimpleReentrantLock` | recursion in `state`, the `acquires` argument, `Condition` with nested holds |
+| 5 | `SimpleReadWriteLock` | one `int state` for two modes, writer starvation |
 
-Контракт каждого класса — в его javadoc. Тесты проверяют ровно его, не больше.
-Где наш контракт сознательно отличается от JDK (например, честный `tryAcquire()` не обгоняет очередь), это сказано в javadoc.
+Each class's contract is in its javadoc; tests check exactly that. Deviations from the JDK
+(e.g. fair `tryAcquire()` does not barge) are stated there.
 
-Правила игры:
+Rules: use only AQS inside your classes (no JDK locks/semaphores), don't edit the tests.
 
-- Свою логику пишите только через AQS. `ReentrantLock`, `Semaphore` и т.п. из JDK внутри своих классов не использовать.
-- Тесты не менять. Если кажется, что тест неправ, — это повод разобраться (или открыть issue и обсудить).
-- Ориентир — до ~300 строк на класс, обычно выходит 50–150.
+## Requirements
 
-## Требования
+- JDK 17+
+- Maven is not needed: use the wrapper (`./mvnw`, or `mvnw.cmd` on Windows)
+- jcstress: 4+ cores recommended; tests with three actors are skipped on 2 cores
 
-- JDK 17+ (проверено на 21).
-- Maven ставить не нужно: в репо есть wrapper (`mvnw` / `mvnw.cmd`), он скачает Maven сам.
-- Для jcstress желательно 4+ ядра. На 2 ядрах тесты с тремя акторами (`SemaphoreTryAcquireArbitration`, `SemaphoreFairTryAcquireArbitration`) будут пропущены.
-
-Ниже команды для Linux/macOS. На Windows вместо `./mvnw` пишите `mvnw.cmd` (или `.\mvnw.cmd` в PowerShell).
-
-## JUnit: семантика
+## JUnit
 
 ```bash
-# все тесты
-./mvnw -pl core test
-
-# один уровень
-./mvnw -pl core test -Dtest=MutexTest
-
-# один тест
+./mvnw -pl core test                                   # all
+./mvnw -pl core test -Dtest=MutexTest                  # one level
 ./mvnw -pl core test -Dtest='MutexTest#blockedLockWakesUp'
 ```
 
-Пока класс не реализован, его тесты падают с `NotImplementedYet` — это нормально.
-Многопоточные тесты детерминированные: они ждут наблюдаемых событий (поток встал в очередь, поток уснул) с таймаутом 5 секунд, а не надеются на `sleep`.
-Падение с сообщением «не завершился за 5000 мс» почти всегда означает потерянный сигнал.
+Unimplemented classes fail with `NotImplementedYet`. Multithreaded tests wait for observable events
+(thread queued, thread parked) with a 5 s timeout; "did not finish in 5000 ms" usually means a lost wakeup.
 
-## jcstress: конкурентность
-
-JUnit ловит ошибки логики, но гонки проявляются редко. jcstress гоняет маленькие сценарии миллионы раз
-на разных чередованиях потоков и проверяет, что запрещённых исходов не бывает.
+## jcstress
 
 ```bash
-# собрать jar с тестами (тянет за собой core)
 ./mvnw -pl stress -am package -DskipTests
-
-# быстрый прогон одного уровня
 java -jar stress/target/jcstress.jar -t aqs.practice.stress.mutex -m quick
-
-# все тесты, режим по умолчанию (долго)
 java -jar stress/target/jcstress.jar -t aqs.practice
 ```
 
-`-t` — регулярка по имени теста. Режимы `-m`: `sanity` (проверить, что вообще запускается), `quick`, `default`, `tough`, `stress`.
-Итог в конце вывода (`Failed tests: ...`) и HTML-отчёт в `results/index.html`.
+`-t` is a regex on the test name; `-m` is one of `sanity`, `quick`, `default`, `tough`, `stress`.
+Summary is printed at the end (`Failed tests: ...`), HTML report goes to `results/index.html`.
 
-Что есть:
-
-| Пакет | Тесты |
+| Package | Tests |
 |---|---|
-| `mutex` | взаимоисключение, атомарность блока (happens-before), `tryLock` без ложных неудач, пробуждение по `Condition` |
-| `latch` | пробуждение (Termination), пробуждение двух ждущих одним сигналом, публикация данных через `signal`/`await` |
-| `semaphore` | `tryAcquire` с тремя потоками (обычный и честный), семафор как мьютекс, пробуждение, пробуждение двух через `release(2)` |
-| `reentrant` | взаимоисключение при двойном захвате (обычный и честный), `tryLock`, `await` при двойном захвате |
-| `rwlock` | писатели исключают друг друга, читатель видит запись целиком, читатели делят лок, писатель против читателя |
+| `mutex` | mutual exclusion, atomic block (happens-before), `tryLock` arbitration, `Condition` wakeup |
+| `latch` | wakeup, two waiters woken by one signal, data publication via `signal`/`await` |
+| `semaphore` | `tryAcquire` with three threads (nonfair and fair), semaphore as mutex, wakeup, `release(2)` waking two |
+| `reentrant` | mutual exclusion with nested locking (nonfair and fair), `tryLock`, `await` with nested holds |
+| `rwlock` | exclusive writers, reader sees whole write, shared readers, writer vs reader |
 
-Тесты в режиме `Mode.Termination` проверяют, что поток вообще просыпается: исход `STALE` значит, что он завис.
+`Mode.Termination` tests check that a thread wakes up at all; `STALE` means it hung.
 
-Запускайте jcstress на уровне, только когда его JUnit уже зелёный. Если пробуждение сломано всегда, а не изредка,
-непрерывные тесты jcstress просто повиснут (поток ждёт сигнала, которого не будет), и вы потратите время зря.
-JUnit такие ошибки ловит за секунды; jcstress нужен для редких гонок, которые JUnit не видит.
+Run jcstress for a level only after its JUnit tests pass: if wakeup is always broken, continuous jcstress tests just hang.
 
-## Сломай нарочно
-
-Самая полезная часть практики. Когда класс зелёный, сделайте рядом сломанную копию и убедитесь, что тесты это ловят.
-Например:
-
-- `setState(1)` после проверки `getState() == 0` вместо CAS;
-- одна попытка CAS без цикла в `tryAcquireShared`;
-- `tryRelease`, который не проверяет владельца;
-- `tryReleaseShared`, который возвращает `false`;
-- честный режим без `hasQueuedPredecessors()`;
-- `SimpleReentrantLock`, который игнорирует аргумент `acquires` (подсказка: смотрите на тест с `await` при двойном захвате).
-
-Если тест не упал — подумайте, почему: либо ошибка безвредна на практике, либо тесту не хватает сценария.
-Второе — хороший повод для PR в `main`.
-
-## Работа вдвоём
-
-`main` — общий каркас, реализации туда не попадают.
-
-```bash
-git clone <url> && cd aqs-practice
-git switch -c yehor/impl     # у друга своё имя: <имя>/impl
-# пишем, коммитим, пушим свою ветку
-git push -u origin yehor/impl
-```
-
-- Реализации живут только в личных ветках. В `main` — только изменения каркаса: новые тесты, правки контракта, README.
-- Улучшение каркаса делается отдельной веткой от `main` и PR. Потом каждый подтягивает его к себе: `git merge main` в своей ветке.
-- Сравнивать решения удобно через `git diff yehor/impl..friend/impl -- core/src/main` — но лучше после того, как оба закончили уровень.
-
-На каждый push в любую ветку, кроме `main`, GitHub Actions прогоняет JUnit и короткий jcstress (`-m sanity`)
-отдельно для каждого уровня, так что видно, какие уровни уже зелёные. Нереализованные уровни, конечно, будут красными.
-
-## Что почитать рядом
-
-- Сама статья Лиа: разделы 3 (дизайн) и 4 (использование).
-- Javadoc `AbstractQueuedSynchronizer`: примеры `Mutex` и `BooleanLatch`. Подсматривать в них можно, но сначала попробуйте сами.
-- Комментарий-обзор в начале `AbstractQueuedSynchronizer.java` в JDK 17+: как устроена очередь после переписывания в JDK 14.
-- *Java Concurrency in Practice*, глава 14.
-- Примеры jcstress: `jcstress-samples` в репозитории jcstress.
+CI runs JUnit and jcstress `-m sanity` per level on every branch except `main`.
