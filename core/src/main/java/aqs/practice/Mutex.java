@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
@@ -29,52 +30,93 @@ import java.util.concurrent.locks.Lock;
  * {@code Sync extends AbstractQueuedSynchronizer}. Какие методы AQS переопределять, решайте сами.
  */
 public class Mutex implements Lock {
-
-    // TODO: private static final class Sync extends AbstractQueuedSynchronizer { ... }
-    // TODO: private final Sync sync = new Sync();
+    private final Sync sync = new Sync();
 
     @Override
     public void lock() {
-        throw new NotImplementedYet();
+        sync.lock();
     }
 
     @Override
     public void lockInterruptibly() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireInterruptibly(1);
     }
 
     @Override
     public boolean tryLock() {
-        throw new NotImplementedYet();
+        return sync.tryAcquire(1);
     }
 
     @Override
     public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryAcquireNanos(1, unit.toNanos(time));
     }
 
     @Override
     public void unlock() {
-        throw new NotImplementedYet();
+        sync.unLock();
     }
 
     @Override
     public Condition newCondition() {
-        throw new NotImplementedYet();
+        return sync.createConditionObject();
     }
 
     /** Занят ли лок каким-либо потоком. */
     public boolean isLocked() {
-        throw new NotImplementedYet();
+        return sync.isLocked();
     }
 
     /** Держит ли лок текущий поток. */
     public boolean isHeldByCurrentThread() {
-        throw new NotImplementedYet();
+        return sync.isHeldExclusively();
     }
 
     /** Примерное число потоков в очереди ожидания (для тестов и мониторинга). */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
+    }
+
+    private static final class Sync extends AbstractQueuedSynchronizer {
+        public void lock() {
+            acquire(1);
+        }
+
+        public boolean unLock() {
+            return release(1);
+        }
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            if (compareAndSetState(0, 1)) {
+                setExclusiveOwnerThread(Thread.currentThread());
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (!isHeldExclusively())
+                throw new IllegalMonitorStateException();
+            setExclusiveOwnerThread(null);
+            boolean cas = compareAndSetState(1, 0);
+            if (!cas)
+                throw new IllegalMonitorStateException();
+            return true;
+        }
+
+        @Override
+        protected boolean isHeldExclusively() {
+            return getExclusiveOwnerThread() == Thread.currentThread();
+        }
+
+        public ConditionObject createConditionObject() {
+            return new ConditionObject();
+        }
+
+        public boolean isLocked() {
+            return getState() == 1;
+        }
     }
 }
