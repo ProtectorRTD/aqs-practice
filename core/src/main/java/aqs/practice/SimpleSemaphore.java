@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
  * Уровень 3. Счётный семафор с честным и нечестным режимом.
@@ -27,59 +28,218 @@ import java.util.concurrent.TimeUnit;
  * <p>Подсказка по форме: см., как {@code ReentrantLock} разделяет fair/nonfair на два подкласса AQS.
  */
 public class SimpleSemaphore {
-
-    // TODO: Sync / FairSync / NonfairSync
+    private Sync sync;
+    private final boolean fair;
 
     public SimpleSemaphore(int permits) {
         this(permits, false);
     }
 
     public SimpleSemaphore(int permits, boolean fair) {
-        throw new NotImplementedYet();
+        if (permits < 0) {
+            throw new IllegalArgumentException();
+        }
+        this.fair = fair;
+        if (!fair) {
+            sync = new NonfairSync(permits);
+        } else {
+            sync = new FairSync(permits);
+        }
     }
 
     public void acquire() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireSemaphore(1);
     }
 
     public void acquire(int permits) throws InterruptedException {
-        throw new NotImplementedYet();
+        if (permits < 0) {
+            throw new IllegalArgumentException();
+        }
+        sync.acquireSemaphore(permits);
     }
 
     public void acquireUninterruptibly() {
-        throw new NotImplementedYet();
+        sync.acquireUninterruptiblySemaphore(1);
     }
 
     public boolean tryAcquire() {
-        throw new NotImplementedYet();
+        return sync.tryAcquireSemaphore(1);
     }
 
     public boolean tryAcquire(int permits) {
-        throw new NotImplementedYet();
+        if (permits < 0) {
+            throw new IllegalArgumentException();
+        }
+        return sync.tryAcquireSemaphore(permits);
     }
 
     public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryAcquireTimeoutSemaphore(timeout, unit);
     }
 
     public void release() {
-        throw new NotImplementedYet();
+        sync.releaseSemaphore(1);
     }
 
     public void release(int permits) {
-        throw new NotImplementedYet();
+        if (permits < 0) {
+            throw new IllegalArgumentException();
+        }
+        sync.releaseSemaphore(permits);
     }
 
     public int availablePermits() {
-        throw new NotImplementedYet();
+        return sync.availablePermit();
     }
 
     public boolean isFair() {
-        throw new NotImplementedYet();
+        return this.fair;
     }
 
     /** Примерное число потоков в очереди ожидания. */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
+    }
+
+    public abstract class Sync extends AbstractQueuedSynchronizer {
+        protected int permits;
+
+        public abstract void acquireSemaphore(int permits) throws InterruptedException;
+        public abstract void acquireUninterruptiblySemaphore(int permits);
+        public abstract void releaseSemaphore(int permits);
+        public abstract boolean tryAcquireSemaphore(int permits);
+        public abstract boolean tryAcquireTimeoutSemaphore(long timeout, TimeUnit unit) throws InterruptedException;
+
+        public int availablePermit() {
+            return permits - getState();
+        }
+
+        public Sync(int permits) {
+            this.permits = permits;
+        }
+
+        @Override
+        protected boolean isHeldExclusively() {
+            return true;
+        }
+    }
+
+    public class NonfairSync extends Sync {
+        public NonfairSync(int permits) {
+            super(permits);
+        }
+
+        @Override
+        public boolean tryAcquireSemaphore(int arg) {
+            while (true) {
+                int state = getState();
+                if (arg > (permits - state))
+                    return false;
+                if (compareAndSetState(state, state + arg)) {
+                    return true;
+                }
+            }
+        }
+
+        @Override
+        public void acquireSemaphore(int permits) throws InterruptedException {
+            acquireSharedInterruptibly(permits);
+        }
+
+        @Override
+        public void acquireUninterruptiblySemaphore(int permits) {
+            acquireShared(1);
+        }
+
+        @Override
+        public void releaseSemaphore(int permits) {
+            releaseShared(permits);
+        }
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            while (true) {
+                int state = getState();
+                if (arg > (permits - state)) {
+                    return -1;
+                }
+                if (compareAndSetState(state, state + arg))
+                    return 1;
+            }
+        }
+
+        @Override
+        protected boolean tryReleaseShared(int arg) {
+            while (true) {
+                int state = getState();
+                if (compareAndSetState(state, state - arg))
+                    return true;
+            }
+        }
+
+
+        @Override
+        public boolean tryAcquireTimeoutSemaphore(long timeout, TimeUnit unit) throws InterruptedException {
+            return tryAcquireSharedNanos(1, unit.toNanos(timeout));
+        }
+    }
+
+    public class FairSync extends Sync {
+        public FairSync(int permits) {
+            super(permits);
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            while (true) {
+                int state = getState();
+                if (compareAndSetState(state, state - arg))
+                    return true;
+            }
+        }
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            while (true) {
+                int state = getState();
+                if (hasQueuedPredecessors() || arg > (permits - state))
+                    return false;
+                boolean cas = compareAndSetState(state, state + arg);
+                if (cas) {
+                    return true;
+                }
+            }
+        }
+
+        @Override
+        public boolean tryAcquireTimeoutSemaphore(long timeout, TimeUnit unit) throws InterruptedException {
+            return tryAcquireNanos(1, unit.toNanos(timeout));
+        }
+
+        @Override
+        public boolean tryAcquireSemaphore(int arg) {
+            while (true) {
+                int state = getState();
+                if (hasQueuedPredecessors() || arg > (permits - state))
+                    return false;
+                if (compareAndSetState(state, state + arg))
+                    return true;
+            }
+        }
+
+        @Override
+        public void releaseSemaphore(int permits) {
+            release(permits);
+        }
+
+        @Override
+        public void acquireUninterruptiblySemaphore(int permits) {
+            acquire(1);
+        }
+
+        @Override
+        public void acquireSemaphore(int permits) throws InterruptedException {
+            acquireInterruptibly(permits);
+        }
     }
 }
