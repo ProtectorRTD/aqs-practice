@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
@@ -24,65 +25,205 @@ import java.util.concurrent.locks.Lock;
  * </ul>
  */
 public class SimpleReentrantLock implements Lock {
-
-    // TODO: Sync / FairSync / NonfairSync
+    private final boolean fair;
+    private final Sync sync;
 
     public SimpleReentrantLock() {
         this(false);
     }
 
     public SimpleReentrantLock(boolean fair) {
-        throw new NotImplementedYet();
+        this.fair = fair;
+        if (!fair) {
+            sync = new NonfairSync();
+        } else {
+            sync = new FairSync();
+        }
     }
 
     @Override
     public void lock() {
-        throw new NotImplementedYet();
+        sync.lock();
     }
 
     @Override
     public void lockInterruptibly() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.lockInterruptibly();
     }
 
     @Override
     public boolean tryLock() {
-        throw new NotImplementedYet();
+        return sync.tryLock();
     }
 
     @Override
     public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryLock(time, unit);
     }
 
     @Override
     public void unlock() {
-        throw new NotImplementedYet();
+        sync.unlock();
     }
 
     @Override
     public Condition newCondition() {
-        throw new NotImplementedYet();
+        return sync.getConditionObject();
     }
 
     public int getHoldCount() {
-        throw new NotImplementedYet();
+        return sync.getHoldCount();
     }
 
     public boolean isHeldByCurrentThread() {
-        throw new NotImplementedYet();
+        return sync.isHeldExclusively();
     }
 
     public boolean isLocked() {
-        throw new NotImplementedYet();
+        return sync.isLocked();
     }
 
     public boolean isFair() {
-        throw new NotImplementedYet();
+        return fair;
     }
 
-    /** Примерное число потоков в очереди ожидания лока. */
+    /**
+     * Примерное число потоков в очереди ожидания лока.
+     */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
+    }
+
+    private abstract class Sync extends AbstractQueuedSynchronizer {
+        public void lock() {
+            acquire(1);
+        }
+
+        public void lockInterruptibly() throws InterruptedException {
+            acquireInterruptibly(1);
+        }
+
+        public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+            return tryAcquireNanos(1, unit.toNanos(time));
+        }
+
+        public void unlock() {
+            release(1);
+        }
+
+        public int getHoldCount() {
+            if (isHeldExclusively())
+                return getState();
+            else
+                return 0;
+        }
+
+        public boolean isLocked() {
+            return getState() > 0;
+        }
+
+        public boolean tryLock() {
+            return this.tryAcquire(1);
+        }
+
+        public ConditionObject getConditionObject() {
+            return new ConditionObject();
+        }
+
+        @Override
+        protected boolean isHeldExclusively() {
+            Thread exclusiveOwnerThread = getExclusiveOwnerThread();
+            Thread thread = Thread.currentThread();
+            return exclusiveOwnerThread == thread;
+        }
+    }
+
+    private class FairSync extends Sync {
+        public FairSync() {
+        }
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            if (!isHeldExclusively() && hasQueuedPredecessors()) {
+                return false;
+            }
+            //locked
+            if (isLocked()) {
+                if (isHeldExclusively()) {
+                    int state = getState();
+                    setState(state + arg);
+                    return true;
+                }
+                return false;
+            } else {
+                //notLocked
+                if (compareAndSetState(0, 1)) {
+                    setExclusiveOwnerThread(Thread.currentThread());
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (isHeldExclusively()) {
+                int state = getState();
+                int updated = state - arg;
+                if (updated == 0) {
+                    setExclusiveOwnerThread(null);
+                    setState(0);
+                    return true;
+                }
+                setState(updated);
+                return false;
+            }
+            throw new IllegalMonitorStateException();
+        }
+    }
+
+    private class NonfairSync extends Sync {
+        public NonfairSync() {
+        }
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            while (true) {
+                if (compareAndSetState(0, arg)) {
+                    setExclusiveOwnerThread(Thread.currentThread());
+                    return true;
+                }
+                //locked
+                if (isLocked()) {
+                    if (isHeldExclusively()) {
+                        int state = getState();
+                        if (compareAndSetState(state, state+arg)) {
+                            return true;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (isHeldExclusively()) {
+                while (true) {
+                    int state = getState();
+                    int updated = state - arg;
+                    if (updated == 0)
+                        setExclusiveOwnerThread(null);
+                    if (compareAndSetState(state, updated)) {
+                        if (updated == 0) {
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+            }
+            throw new IllegalMonitorStateException();
+        }
     }
 }
