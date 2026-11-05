@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
  * Уровень 3. Счётный семафор с честным и нечестным режимом.
@@ -26,60 +27,134 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Подсказка по форме: см., как {@code ReentrantLock} разделяет fair/nonfair на два подкласса AQS.
  */
+// TODO: разнциа между release/releaseShared
 public class SimpleSemaphore {
 
-    // TODO: Sync / FairSync / NonfairSync
+    private static abstract class Sync extends AbstractQueuedSynchronizer {
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (arg < 0)
+                throw new IllegalArgumentException("Permits cannot be < 0");
+            int state = getState();
+            return compareAndSetState(state, state + arg);
+        }
+
+        @Override
+        protected abstract int tryAcquireShared(int arg);
+
+        @Override
+        protected boolean tryReleaseShared(int arg) {
+            if (arg < 0)
+                throw new IllegalArgumentException("Permits cannot be < 0");
+            while (true) {
+                int state = getState();
+                if (compareAndSetState(state, state + arg))
+                    break;
+            }
+            return true;
+        }
+
+        protected void setSyncState(int state) {
+            setState(state);
+        }
+
+        protected int getSyncState() {
+            return getState();
+        }
+    }
+
+    private static final class FairSync extends Sync {
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            if (arg < 0)
+                throw new IllegalArgumentException("Permits cannot be < 0");
+            if (!isQueued(Thread.currentThread()))
+                return -1;
+            int state = getState();
+            if (state - arg < 0)
+                return -1;
+            return compareAndSetState(state, state - arg) ? 1 : -1;
+        }
+    }
+
+    private static final class UnfairSync extends Sync {
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            if (arg < 0)
+                throw new IllegalArgumentException("Permits cannot be < 0");
+            int state = getState();
+            if (state - arg < 0)
+                return -1;
+            return compareAndSetState(state, state - arg) ? 1 : -1;
+        }
+    }
+
+    private final Sync sync;
 
     public SimpleSemaphore(int permits) {
         this(permits, false);
     }
 
     public SimpleSemaphore(int permits, boolean fair) {
-        throw new NotImplementedYet();
+        if (permits < 0)
+            throw new IllegalArgumentException("Permits cannot be < 0");
+        sync = fair ? new FairSync() : new UnfairSync();
+        sync.setSyncState(permits);
     }
 
     public void acquire() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireSharedInterruptibly(1);
     }
 
     public void acquire(int permits) throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireSharedInterruptibly(permits);
     }
 
     public void acquireUninterruptibly() {
-        throw new NotImplementedYet();
+        sync.acquireShared(1);
     }
 
     public boolean tryAcquire() {
-        throw new NotImplementedYet();
+        try {
+            return sync.tryAcquireSharedNanos(1, 0);
+        } catch (InterruptedException e) {
+            return false;
+        }
     }
 
     public boolean tryAcquire(int permits) {
-        throw new NotImplementedYet();
+        try {
+            return sync.tryAcquireSharedNanos(permits, 0);
+        } catch (InterruptedException e) {
+            return false;
+        }
     }
 
     public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout));
     }
 
     public void release() {
-        throw new NotImplementedYet();
+        sync.releaseShared(1);
     }
 
     public void release(int permits) {
-        throw new NotImplementedYet();
+        sync.releaseShared(permits);
     }
 
     public int availablePermits() {
-        throw new NotImplementedYet();
+        return sync.getSyncState();
     }
 
     public boolean isFair() {
-        throw new NotImplementedYet();
+        return sync instanceof FairSync;
     }
 
     /** Примерное число потоков в очереди ожидания. */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
     }
 }

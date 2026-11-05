@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
@@ -25,64 +26,147 @@ import java.util.concurrent.locks.Lock;
  */
 public class SimpleReentrantLock implements Lock {
 
-    // TODO: Sync / FairSync / NonfairSync
+    private abstract static class Sync extends AbstractQueuedSynchronizer {
+        protected int rememberedPermits;
+        protected Thread rememeberedThread;
+
+        @Override
+        protected abstract boolean tryAcquire(int arg);
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (arg > 0) {
+                rememberedPermits = arg;
+                rememeberedThread = Thread.currentThread();
+                setState(0);
+                setExclusiveOwnerThread(null);
+                return true;
+            }
+            if (!Thread.currentThread().equals(getExclusiveOwnerThread()))
+                throw new IllegalMonitorStateException("This thread is not maintaining a lock.");
+            // почему порядок тут влияет? Если сначала setState, а потом проверка if (getState() == 0), то есть вероятность дедлока
+            if (getState() == 1)
+                setExclusiveOwnerThread(null);
+            setState(getState() - 1);
+            return true;
+        }
+
+        @Override
+        protected boolean isHeldExclusively() {
+            return getExclusiveOwnerThread() != null;
+        }
+
+        protected Thread getCurrentThread() {
+            return getExclusiveOwnerThread();
+        }
+
+        protected int getSyncState() {
+            return getState();
+        }
+
+        protected boolean commonAcquire() {
+            if (getExclusiveOwnerThread() == null) {
+                boolean res = compareAndSetState(0, 1);
+                if (!res)
+                    return false;
+                if (rememberedPermits > 0 && Thread.currentThread().equals(rememeberedThread)) {
+                    setState(rememberedPermits);
+                    rememberedPermits = 0;
+                    rememeberedThread = null;
+                }
+                setExclusiveOwnerThread(Thread.currentThread());
+                return true;
+            }
+            if (Thread.currentThread().equals(getExclusiveOwnerThread())) {
+                setState(getState() + 1);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    private static final class FairSync extends Sync {
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            if (hasQueuedThreads() && !Thread.currentThread().equals(getExclusiveOwnerThread()) && !Thread.currentThread().equals(getFirstQueuedThread()))
+                return false;
+            return commonAcquire();
+        }
+    }
+
+    private static final class UnfairSync extends Sync {
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            return commonAcquire();
+        }
+    }
+
+    private final Sync sync;
 
     public SimpleReentrantLock() {
         this(false);
     }
 
     public SimpleReentrantLock(boolean fair) {
-        throw new NotImplementedYet();
+        sync = fair ? new FairSync() : new UnfairSync();
     }
 
     @Override
     public void lock() {
-        throw new NotImplementedYet();
+        sync.acquire(0);
     }
 
     @Override
     public void lockInterruptibly() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireInterruptibly(0);
     }
 
     @Override
     public boolean tryLock() {
-        throw new NotImplementedYet();
+        try {
+            return sync.tryAcquireNanos(0, 0);
+        } catch (InterruptedException e) {
+            return false;
+        }
     }
 
     @Override
     public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryAcquireNanos(0, unit.toNanos(time));
     }
 
     @Override
     public void unlock() {
-        throw new NotImplementedYet();
+        sync.release(0);
     }
 
     @Override
     public Condition newCondition() {
-        throw new NotImplementedYet();
+        return sync.new ConditionObject();
     }
 
     public int getHoldCount() {
-        throw new NotImplementedYet();
+        if (!Thread.currentThread().equals(sync.getCurrentThread()))
+            return 0;
+        return sync.getSyncState();
     }
 
     public boolean isHeldByCurrentThread() {
-        throw new NotImplementedYet();
+        return Thread.currentThread().equals(sync.getCurrentThread());
     }
 
     public boolean isLocked() {
-        throw new NotImplementedYet();
+        return sync.getCurrentThread() != null;
     }
 
     public boolean isFair() {
-        throw new NotImplementedYet();
+        return sync instanceof FairSync;
     }
 
     /** Примерное число потоков в очереди ожидания лока. */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
     }
 }

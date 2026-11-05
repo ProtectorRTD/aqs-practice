@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
  * Уровень 2. Одноразовая защёлка: закрыта, пока кто-то не вызовет {@link #signal()}, дальше открыта навсегда.
@@ -23,30 +24,52 @@ import java.util.concurrent.TimeUnit;
  */
 public class OneShotLatch {
 
-    // TODO: Sync extends AbstractQueuedSynchronizer
+    // TODO: разобрать как работает tryAcquireShared и как он помогает разбудеить все потоки
+    private static final class Sync extends AbstractQueuedSynchronizer {
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            if (getState() == 0)
+                return -1;
+            return 1;
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            setState(1);
+            return true;
+        }
+
+        public int getSyncState() {
+            return getState();
+        }
+    }
+
+    private final Sync sync = new Sync();
 
     /** Ждёт, пока защёлку не откроют. */
     public void await() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireSharedInterruptibly(0);
     }
 
     /** Ждёт не дольше таймаута. @return {@code true}, если защёлка открыта, {@code false} по таймауту. */
     public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryAcquireSharedNanos(0, unit.toNanos(timeout));
     }
 
     /** Открывает защёлку и будит всех ждущих. */
     public void signal() {
-        throw new NotImplementedYet();
+        sync.release(0);
+
     }
 
     /** Открыта ли защёлка. */
     public boolean isSignalled() {
-        throw new NotImplementedYet();
+        return sync.getSyncState() == 1;
     }
 
     /** Примерное число потоков в очереди ожидания. */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
     }
 }
