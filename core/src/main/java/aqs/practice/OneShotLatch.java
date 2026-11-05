@@ -1,6 +1,7 @@
 package aqs.practice;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
  * Уровень 2. Одноразовая защёлка: закрыта, пока кто-то не вызовет {@link #signal()}, дальше открыта навсегда.
@@ -22,31 +23,57 @@ import java.util.concurrent.TimeUnit;
  * <p>Вопрос себе перед реализацией: что здесь означает «acquire», если никто ничего не захватывает?
  */
 public class OneShotLatch {
-
-    // TODO: Sync extends AbstractQueuedSynchronizer
-
+    private final Sync sync = new Sync();
     /** Ждёт, пока защёлку не откроют. */
     public void await() throws InterruptedException {
-        throw new NotImplementedYet();
+        sync.acquireSharedInterruptibly(1);
     }
 
     /** Ждёт не дольше таймаута. @return {@code true}, если защёлка открыта, {@code false} по таймауту. */
     public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-        throw new NotImplementedYet();
+        return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout));
     }
 
     /** Открывает защёлку и будит всех ждущих. */
     public void signal() {
-        throw new NotImplementedYet();
+        sync.signal();
     }
 
     /** Открыта ли защёлка. */
     public boolean isSignalled() {
-        throw new NotImplementedYet();
+        return sync.isSignal();
     }
 
     /** Примерное число потоков в очереди ожидания. */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
+    }
+
+    private class Sync extends AbstractQueuedSynchronizer {
+        @Override
+        protected boolean isHeldExclusively() {
+            return true;
+        }
+
+        @Override
+        protected boolean tryReleaseShared (int arg) {
+            setState(1);
+            return true;
+        }
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            if (getState() == 1)
+                return 1;
+            return -1;
+        }
+
+        public void signal() {
+            releaseShared(1);
+        }
+
+        public boolean isSignal() {
+            return getState() == 1;
+        }
     }
 }
