@@ -36,8 +36,11 @@ public class SimpleSemaphore {
         protected boolean tryRelease(int arg) {
             if (arg < 0)
                 throw new IllegalArgumentException("Permits cannot be < 0");
-            int state = getState();
-            return compareAndSetState(state, state + arg);
+            int state;
+            do {
+                state = getState();
+            } while (!compareAndSetState(state, state + arg));
+            return true;
         }
 
         @Override
@@ -47,11 +50,10 @@ public class SimpleSemaphore {
         protected boolean tryReleaseShared(int arg) {
             if (arg < 0)
                 throw new IllegalArgumentException("Permits cannot be < 0");
-            while (true) {
-                int state = getState();
-                if (compareAndSetState(state, state + arg))
-                    break;
-            }
+            int state;
+            do {
+                state = getState();
+            } while (!compareAndSetState(state, state + arg));
             return true;
         }
 
@@ -70,12 +72,15 @@ public class SimpleSemaphore {
         protected int tryAcquireShared(int arg) {
             if (arg < 0)
                 throw new IllegalArgumentException("Permits cannot be < 0");
-            if (!isQueued(Thread.currentThread()))
+            if (!isQueued(Thread.currentThread()) && hasQueuedThreads())
                 return -1;
-            int state = getState();
-            if (state - arg < 0)
-                return -1;
-            return compareAndSetState(state, state - arg) ? 1 : -1;
+            while (true) {
+                int state = getState();
+                if (state - arg < 0)
+                    return -1;
+                if (compareAndSetState(state, state - arg))
+                    return 1;
+            }
         }
     }
 
@@ -85,10 +90,13 @@ public class SimpleSemaphore {
         protected int tryAcquireShared(int arg) {
             if (arg < 0)
                 throw new IllegalArgumentException("Permits cannot be < 0");
-            int state = getState();
-            if (state - arg < 0)
-                return -1;
-            return compareAndSetState(state, state - arg) ? 1 : -1;
+            while (true) {
+                int state = getState();
+                if (state - arg < 0)
+                    return -1;
+                if (compareAndSetState(state, state - arg))
+                    return 1;
+            }
         }
     }
 
@@ -138,11 +146,11 @@ public class SimpleSemaphore {
     }
 
     public void release() {
-        sync.releaseShared(1);
+        sync.release(1);
     }
 
     public void release(int permits) {
-        sync.releaseShared(permits);
+        sync.release(permits);
     }
 
     public int availablePermits() {
