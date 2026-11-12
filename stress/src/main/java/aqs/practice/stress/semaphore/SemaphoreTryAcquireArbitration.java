@@ -11,14 +11,14 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Два разрешения, три потока одновременно делают tryAcquire().
- * Должно выиграть ровно двое: ни больше (выдали лишнее), ни меньше (ложная неудача на CAS).
+ * Two permits, three threads call tryAcquire() at the same time.
+ * Exactly two must win: no more (too many handed out), no fewer (spurious failure on CAS).
  */
 @JCStressTest
 @Outcome(id = {"true, true, false", "true, false, true", "false, true, true"},
-        expect = ACCEPTABLE, desc = "Ровно двое получили разрешение")
-@Outcome(id = "true, true, true", expect = FORBIDDEN, desc = "Выдано больше разрешений, чем было")
-@Outcome(expect = FORBIDDEN, desc = "Ложная неудача: разрешения были, но tryAcquire вернул false")
+        expect = ACCEPTABLE, desc = "Exactly two got a permit")
+@Outcome(id = "true, true, true", expect = FORBIDDEN, desc = "More permits were handed out than existed")
+@Outcome(expect = FORBIDDEN, desc = "Spurious failure: there were permits, but tryAcquire returned false")
 @State
 public class SemaphoreTryAcquireArbitration {
 

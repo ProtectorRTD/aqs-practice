@@ -10,12 +10,12 @@ import org.openjdk.jcstress.infra.results.ZZZ_Result;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** То же, что {@link SemaphoreTryAcquireArbitration}, но для честного режима. */
+/** Same as {@link SemaphoreTryAcquireArbitration}, but for fair mode. */
 @JCStressTest
 @Outcome(id = {"true, true, false", "true, false, true", "false, true, true"},
-        expect = ACCEPTABLE, desc = "Ровно двое получили разрешение")
-@Outcome(id = "true, true, true", expect = FORBIDDEN, desc = "Выдано больше разрешений, чем было")
-@Outcome(expect = FORBIDDEN, desc = "Ложная неудача: разрешения были, очереди нет, но tryAcquire вернул false")
+        expect = ACCEPTABLE, desc = "Exactly two got a permit")
+@Outcome(id = "true, true, true", expect = FORBIDDEN, desc = "More permits were handed out than existed")
+@Outcome(expect = FORBIDDEN, desc = "Spurious failure: there were permits and no queue, but tryAcquire returned false")
 @State
 public class SemaphoreFairTryAcquireArbitration {
 

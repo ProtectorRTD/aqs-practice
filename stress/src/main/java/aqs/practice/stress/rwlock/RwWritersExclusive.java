@@ -11,10 +11,10 @@ import org.openjdk.jcstress.infra.results.I_Result;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** Два писателя делают x++ под write-локом. */
+/** Two writers do x++ under the write lock. */
 @JCStressTest
-@Outcome(id = "2", expect = ACCEPTABLE, desc = "Оба инкремента на месте")
-@Outcome(expect = FORBIDDEN, desc = "Два писателя были внутри одновременно")
+@Outcome(id = "2", expect = ACCEPTABLE, desc = "Both increments are there")
+@Outcome(expect = FORBIDDEN, desc = "Two writers were inside at the same time")
 @State
 public class RwWritersExclusive {
 

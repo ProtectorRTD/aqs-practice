@@ -14,12 +14,12 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Ждущий держит лок дважды и уходит в await. Сигнальщик должен суметь захватить лок
- * (значит await отпустил его полностью) и разбудить ждущего.
+ * The awaiter holds the lock twice and goes into await. The signaller must be able to acquire the lock
+ * (so await released it fully) and wake the awaiter.
  */
 @JCStressTest(Mode.Termination)
-@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Ждущий проснулся")
-@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Завис: сигнал потерян или await не отпустил лок полностью")
+@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "The awaiter woke up")
+@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Hung: the signal was lost or await did not release the lock fully")
 @State
 public class ReentrantConditionWakeup {
 

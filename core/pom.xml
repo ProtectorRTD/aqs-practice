@@ -12,7 +12,7 @@
 
     <artifactId>core</artifactId>
     <name>AQS practice :: core</name>
-    <description>Ваши синхронизаторы + JUnit-тесты на их семантику</description>
+    <description>Your synchronizers + JUnit tests for their semantics</description>
 
     <dependencies>
         <dependency>

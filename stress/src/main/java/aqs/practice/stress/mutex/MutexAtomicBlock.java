@@ -11,13 +11,13 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Писатель под локом пишет x, потом y. Читатель под тем же локом читает y, потом x.
- * Если лок работает (и даёт happens-before), читатель видит либо «до», либо «после», но не середину.
+ * The writer writes x, then y under the lock. The reader reads y, then x under the same lock.
+ * If the lock works (and gives happens-before), the reader sees either "before" or "after", never the middle.
  */
 @JCStressTest
-@Outcome(id = "0, 0", expect = ACCEPTABLE, desc = "Читатель зашёл раньше писателя")
-@Outcome(id = "1, 1", expect = ACCEPTABLE, desc = "Читатель зашёл после писателя")
-@Outcome(expect = FORBIDDEN, desc = "Читатель увидел полузаписанное состояние")
+@Outcome(id = "0, 0", expect = ACCEPTABLE, desc = "The reader got in before the writer")
+@Outcome(id = "1, 1", expect = ACCEPTABLE, desc = "The reader got in after the writer")
+@Outcome(expect = FORBIDDEN, desc = "The reader saw a half-written state")
 @State
 public class MutexAtomicBlock {
 

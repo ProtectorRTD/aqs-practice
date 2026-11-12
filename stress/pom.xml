@@ -12,7 +12,7 @@
 
     <artifactId>stress</artifactId>
     <name>AQS practice :: stress</name>
-    <description>jcstress-тесты; собираются в target/jcstress.jar</description>
+    <description>jcstress tests; built into target/jcstress.jar</description>
 
     <dependencies>
         <dependency>
@@ -30,9 +30,9 @@
     <build>
         <plugins>
             <!--
-                jcstress генерирует обвязку тестов annotation processor-ом.
-                Явный processorpath включает обработку аннотаций на любом JDK
-                (с JDK 23 она по умолчанию выключена).
+                jcstress generates the test harness with an annotation processor.
+                An explicit processorpath enables annotation processing on any JDK
+                (it is disabled by default since JDK 23).
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -48,7 +48,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Собираем один исполняемый jar: java -jar stress/target/jcstress.jar -->
+            <!-- Build a single executable jar: java -jar stress/target/jcstress.jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

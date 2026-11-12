@@ -1,6 +1,6 @@
 name: tests
 
-# main содержит только каркас (заглушки), поэтому там тесты заведомо красные.
+# main contains only the skeleton (stubs), so tests there are red by design.
 on:
   push:
     branches-ignore: [main]
@@ -9,7 +9,7 @@ on:
 
 jobs:
   level:
-    # Отдельная проверка на каждый уровень: сразу видно, какие уже зелёные.
+    # A separate check per level: you can see at a glance which ones are green.
     name: ${{ matrix.test }}
     runs-on: ubuntu-latest
     strategy:
@@ -44,6 +44,6 @@ jobs:
       - name: jcstress (sanity)
         run: |
           java -jar stress/target/jcstress.jar -t aqs.practice.stress.${{ matrix.stress }} -m sanity | tee jcstress.log
-          # jcstress не меняет код выхода при падениях, поэтому проверяем итог по логу
+          # jcstress does not change the exit code on failures, so we check the summary in the log
           grep -q "Failed tests: No matches" jcstress.log
           grep -q "Error tests: No matches" jcstress.log

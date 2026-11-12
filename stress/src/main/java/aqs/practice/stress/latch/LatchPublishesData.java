@@ -13,13 +13,13 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Запись до signal() обязана быть видна после await(): release/acquire в AQS дают happens-before
- * через volatile state. Обычное (не volatile) поле здесь специально.
+ * A write before signal() must be visible after await(): release/acquire in AQS give happens-before
+ * through the volatile state. The plain (non-volatile) field here is intentional.
  */
 @JCStressTest
-@Outcome(id = "42", expect = ACCEPTABLE, desc = "Данные опубликованы")
-@Outcome(id = "-1", expect = FORBIDDEN, desc = "await не дождался signal(): сигнал потерян")
-@Outcome(expect = FORBIDDEN, desc = "После await() видно старое значение")
+@Outcome(id = "42", expect = ACCEPTABLE, desc = "Data published")
+@Outcome(id = "-1", expect = FORBIDDEN, desc = "await did not get the signal(): the signal was lost")
+@Outcome(expect = FORBIDDEN, desc = "The old value is visible after await()")
 @State
 public class LatchPublishesData {
 
@@ -34,8 +34,8 @@ public class LatchPublishesData {
 
     @Actor
     public void consumer(I_Result r) {
-        // await с таймаутом: если сигнал изредка теряется, тест покажет -1, а не повесит весь прогон.
-        // (В непрерывном режиме jcstress акторы не могут бросать checked-исключения.)
+        // timed await: if the signal is occasionally lost, the test shows -1 instead of hanging the whole run.
+        // (In jcstress continuous mode actors cannot throw checked exceptions.)
         try {
             r.r1 = latch.await(5, TimeUnit.SECONDS) ? data : -1;
         } catch (InterruptedException e) {
