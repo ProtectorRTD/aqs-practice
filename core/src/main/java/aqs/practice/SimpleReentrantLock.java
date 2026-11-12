@@ -155,7 +155,7 @@ public class SimpleReentrantLock implements Lock {
                 return false;
             } else {
                 //notLocked
-                if (compareAndSetState(0, 1)) {
+                if (compareAndSetState(0, arg)) {
                     setExclusiveOwnerThread(Thread.currentThread());
                     return true;
                 }

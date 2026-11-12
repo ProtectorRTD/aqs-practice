@@ -132,6 +132,9 @@ public class SimpleReadWriteLock implements ReadWriteLock {
         protected boolean tryReleaseShared(int arg) {
             while (true) {
                 int state = getState();
+                if (getReaderCount(state) <= 0) {
+                    throw new IllegalMonitorStateException();
+                }
                 if (state == 0) {
                     throw new IllegalMonitorStateException();
                 }
@@ -247,7 +250,7 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
         @Override
         public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-            sync.tryAcquireNanos(1, unit.toNanos(time));
+            sync.tryAcquireSharedNanos(1, unit.toNanos(time));
             return true;
         }
 

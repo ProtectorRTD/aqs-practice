@@ -235,7 +235,7 @@ public class SimpleSemaphore {
 
         @Override
         public void acquireUninterruptiblySemaphore(int permits) {
-            acquire(1);
+            acquire(permits);
         }
 
         @Override
