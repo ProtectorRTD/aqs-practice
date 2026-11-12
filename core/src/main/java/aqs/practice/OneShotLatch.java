@@ -4,47 +4,47 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * Уровень 2. Одноразовая защёлка: закрыта, пока кто-то не вызовет {@link #signal()}, дальше открыта навсегда.
- * По сути {@code CountDownLatch(1)}.
+ * Level 2. One-shot latch: closed until someone calls {@link #signal()}, open forever after that.
+ * Essentially {@code CountDownLatch(1)}.
  *
- * <p>Режим AQS: shared.
+ * <p>AQS mode: shared.
  *
- * <h2>Контракт</h2>
+ * <h2>Contract</h2>
  * <ul>
- *   <li>До {@code signal()} все {@link #await()} блокируются.</li>
- *   <li>{@code signal()} будит <b>всех</b> ждущих, а не одного.</li>
- *   <li>После {@code signal()} любой {@code await()} возвращается сразу. Обратно защёлка не закрывается.</li>
- *   <li>Повторный {@code signal()} безопасен и ничего не меняет.</li>
- *   <li>Всё, что поток записал до {@code signal()}, видно потоку после выхода из {@code await()}.</li>
- *   <li>{@link #await()} прерываемый; {@link #await(long, TimeUnit)} возвращает {@code false} по таймауту.</li>
- *   <li>{@code signal()} может вызвать любой поток, владельца нет.</li>
+ *   <li>Before {@code signal()}, every {@link #await()} blocks.</li>
+ *   <li>{@code signal()} wakes <b>all</b> waiters, not just one.</li>
+ *   <li>After {@code signal()}, any {@code await()} returns immediately. The latch never closes again.</li>
+ *   <li>A repeated {@code signal()} is safe and changes nothing.</li>
+ *   <li>Everything a thread wrote before {@code signal()} is visible to a thread after it returns from {@code await()}.</li>
+ *   <li>{@link #await()} is interruptible; {@link #await(long, TimeUnit)} returns {@code false} on timeout.</li>
+ *   <li>Any thread may call {@code signal()}; there is no owner.</li>
  * </ul>
  *
- * <p>Вопрос себе перед реализацией: что здесь означает «acquire», если никто ничего не захватывает?
+ * <p>A question to ask yourself before implementing: what does "acquire" mean here if nobody takes anything?
  */
 public class OneShotLatch {
     private final Sync sync = new Sync();
-    /** Ждёт, пока защёлку не откроют. */
+    /** Waits until the latch is opened. */
     public void await() throws InterruptedException {
         sync.acquireSharedInterruptibly(1);
     }
 
-    /** Ждёт не дольше таймаута. @return {@code true}, если защёлка открыта, {@code false} по таймауту. */
+    /** Waits no longer than the timeout. @return {@code true} if the latch is open, {@code false} on timeout. */
     public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
         return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout));
     }
 
-    /** Открывает защёлку и будит всех ждущих. */
+    /** Opens the latch and wakes all waiters. */
     public void signal() {
         sync.signal();
     }
 
-    /** Открыта ли защёлка. */
+    /** Whether the latch is open. */
     public boolean isSignalled() {
         return sync.isSignal();
     }
 
-    /** Примерное число потоков в очереди ожидания. */
+    /** Approximate number of threads waiting in the queue. */
     public int getQueueLength() {
         return sync.getQueueLength();
     }

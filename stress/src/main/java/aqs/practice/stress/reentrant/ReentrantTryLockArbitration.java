@@ -10,11 +10,11 @@ import org.openjdk.jcstress.infra.results.ZZ_Result;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** Два потока одновременно делают tryLock и не отпускают: ровно один победитель. */
+/** Two threads call tryLock at the same time and do not release: exactly one winner. */
 @JCStressTest
-@Outcome(id = {"true, false", "false, true"}, expect = ACCEPTABLE, desc = "Ровно один победитель")
-@Outcome(id = "true, true", expect = FORBIDDEN, desc = "Лок выдан двоим")
-@Outcome(id = "false, false", expect = FORBIDDEN, desc = "Ложная неудача")
+@Outcome(id = {"true, false", "false, true"}, expect = ACCEPTABLE, desc = "Exactly one winner")
+@Outcome(id = "true, true", expect = FORBIDDEN, desc = "The lock was given to two threads")
+@Outcome(id = "false, false", expect = FORBIDDEN, desc = "Spurious failure")
 @State
 public class ReentrantTryLockArbitration {
 

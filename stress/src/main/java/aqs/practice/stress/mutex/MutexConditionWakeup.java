@@ -14,12 +14,12 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Поток ждёт на Condition, другой под локом выставляет флаг и делает signal.
- * Если сигнал теряется, ждущий спит вечно (STALE).
+ * One thread waits on a Condition, another sets a flag under the lock and calls signal.
+ * If the signal is lost, the awaiter sleeps forever (STALE).
  */
 @JCStressTest(Mode.Termination)
-@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Ждущий проснулся")
-@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Сигнал потерян, поток завис")
+@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "The awaiter woke up")
+@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Signal lost, the thread hung")
 @State
 public class MutexConditionWakeup {
 

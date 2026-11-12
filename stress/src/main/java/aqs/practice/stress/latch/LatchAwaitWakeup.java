@@ -12,12 +12,12 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Поток ждёт защёлку, другой её открывает. Классическая проверка на потерянный сигнал:
- * signal() может прийти в любой момент — до постановки в очередь, между постановкой и park, после park.
+ * One thread waits on the latch, another opens it. The classic lost-wakeup check:
+ * signal() may arrive at any moment: before queueing, between queueing and park, after park.
  */
 @JCStressTest(Mode.Termination)
-@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Ждущий проснулся")
-@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Сигнал потерян, поток завис")
+@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "The awaiter woke up")
+@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Signal lost, the thread hung")
 @State
 public class LatchAwaitWakeup {
 

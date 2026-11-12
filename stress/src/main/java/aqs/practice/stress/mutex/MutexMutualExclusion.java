@@ -12,12 +12,12 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Два потока делают {@code x++} под локом. Потерянный инкремент значит,
- * что лок пустил внутрь двоих сразу.
+ * Two threads do {@code x++} under the lock. A lost increment means
+ * the lock let two threads in at once.
  */
 @JCStressTest
-@Outcome(id = "2", expect = ACCEPTABLE, desc = "Оба инкремента на месте")
-@Outcome(expect = FORBIDDEN, desc = "Инкремент потерян: два потока были в критической секции одновременно")
+@Outcome(id = "2", expect = ACCEPTABLE, desc = "Both increments are there")
+@Outcome(expect = FORBIDDEN, desc = "Increment lost: two threads were in the critical section at the same time")
 @State
 public class MutexMutualExclusion {
 

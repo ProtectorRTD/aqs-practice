@@ -11,10 +11,10 @@ import org.openjdk.jcstress.infra.results.I_Result;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** Режим: нечестный. Инкремент под двойным (возвратным) захватом лока. */
+/** Mode: nonfair. Increment under a double (reentrant) hold of the lock. */
 @JCStressTest
-@Outcome(id = "2", expect = ACCEPTABLE, desc = "Оба инкремента на месте")
-@Outcome(expect = FORBIDDEN, desc = "Инкремент потерян")
+@Outcome(id = "2", expect = ACCEPTABLE, desc = "Both increments are there")
+@Outcome(expect = FORBIDDEN, desc = "Increment lost")
 @State
 public class ReentrantMutualExclusion {
 

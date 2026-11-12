@@ -22,7 +22,7 @@ class MutexTest {
     private final Mutex mutex = new Mutex();
 
     @Test
-    @DisplayName("Новый лок свободен и очередь пуста")
+    @DisplayName("A new lock is free and the queue is empty")
     void freshLockIsFree() {
         assertFalse(mutex.isLocked());
         assertFalse(mutex.isHeldByCurrentThread());
@@ -30,7 +30,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("lock/unlock меняют состояние")
+    @DisplayName("lock/unlock change the state")
     void lockAndUnlock() {
         mutex.lock();
         assertTrue(mutex.isLocked());
@@ -41,7 +41,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("tryLock на свободном локе успешен")
+    @DisplayName("tryLock on a free lock succeeds")
     void tryLockOnFreeLock() {
         assertTrue(mutex.tryLock());
         assertTrue(mutex.isHeldByCurrentThread());
@@ -49,7 +49,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("Лок невозвратный: повторный tryLock владельцем даёт false")
+    @DisplayName("The lock is non-reentrant: a repeated tryLock by the owner returns false")
     void notReentrant() {
         mutex.lock();
         assertFalse(mutex.tryLock());
@@ -59,26 +59,26 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("unlock без захвата бросает IllegalMonitorStateException")
+    @DisplayName("unlock without holding throws IllegalMonitorStateException")
     void unlockWithoutHolding() {
         assertThrows(IllegalMonitorStateException.class, mutex::unlock);
         assertFalse(mutex.isLocked());
     }
 
     @Test
-    @DisplayName("unlock чужого лока бросает IllegalMonitorStateException и не отпускает лок")
+    @DisplayName("unlock of someone else's lock throws IllegalMonitorStateException and does not release it")
     void unlockByNonOwner() throws Exception {
         try (LockHolder holder = LockHolder.hold(mutex)) {
             assertFalse(mutex.tryLock());
             assertThrows(IllegalMonitorStateException.class, mutex::unlock);
-            assertTrue(mutex.isLocked(), "чужой unlock не должен был отпустить лок");
+            assertTrue(mutex.isLocked(), "a non-owner unlock must not release the lock");
             assertFalse(mutex.tryLock());
         }
         assertFalse(mutex.isLocked());
     }
 
     @Test
-    @DisplayName("Заблокированный lock() просыпается после unlock()")
+    @DisplayName("A blocked lock() wakes up after unlock()")
     void blockedLockWakesUp() throws Exception {
         mutex.lock();
         TestThreads.Worker w = start("waiter", () -> {
@@ -93,7 +93,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("Несколько ждущих по очереди получают лок")
+    @DisplayName("Several waiters get the lock one after another")
     void severalWaitersAllProceed() throws Exception {
         mutex.lock();
         TestThreads.Worker[] ws = new TestThreads.Worker[3];
@@ -113,7 +113,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("lockInterruptibly отвечает на прерывание и не ломает лок")
+    @DisplayName("lockInterruptibly responds to interruption and does not break the lock")
     void lockInterruptibly() throws Exception {
         mutex.lock();
         AtomicBoolean interrupted = new AtomicBoolean();
@@ -129,25 +129,25 @@ class MutexTest {
         awaitParked(w);
         w.interrupt();
         w.joinOk();
-        assertTrue(interrupted.get(), "ожидался InterruptedException");
-        assertTrue(mutex.isHeldByCurrentThread(), "лок должен остаться у владельца");
+        assertTrue(interrupted.get(), "expected InterruptedException");
+        assertTrue(mutex.isHeldByCurrentThread(), "the lock must stay with its owner");
         mutex.unlock();
-        assertTrue(mutex.tryLock(), "после отменённого ожидания лок должен нормально захватываться");
+        assertTrue(mutex.tryLock(), "after a cancelled wait the lock must be acquirable as usual");
         mutex.unlock();
     }
 
     @Test
-    @DisplayName("tryLock с таймаутом возвращает false, если лок не отпустили")
+    @DisplayName("Timed tryLock returns false if the lock is not released")
     void tryLockTimesOut() throws Exception {
         try (LockHolder ignored = LockHolder.hold(mutex)) {
             assertFalse(mutex.tryLock(50, TimeUnit.MILLISECONDS));
         }
-        assertTrue(mutex.tryLock(), "после таймаута лок должен нормально захватываться");
+        assertTrue(mutex.tryLock(), "after a timeout the lock must be acquirable as usual");
         mutex.unlock();
     }
 
     @Test
-    @DisplayName("tryLock с таймаутом успевает, если лок отпустили вовремя")
+    @DisplayName("Timed tryLock succeeds if the lock is released in time")
     void tryLockWithTimeoutSucceeds() throws Exception {
         mutex.lock();
         AtomicBoolean got = new AtomicBoolean();
@@ -164,7 +164,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("Счётчик под локом не теряет инкременты")
+    @DisplayName("A counter under the lock loses no increments")
     void mutualExclusionCounter() throws Exception {
         int threads = 4;
         int iterations = 20_000;
@@ -189,7 +189,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("Condition: await отпускает лок, signal будит")
+    @DisplayName("Condition: await releases the lock, signal wakes up")
     void conditionAwaitSignal() throws Exception {
         Condition ready = mutex.newCondition();
         AtomicBoolean flag = new AtomicBoolean();
@@ -204,7 +204,7 @@ class MutexTest {
             }
         });
         awaitParked(w);
-        assertTrue(mutex.tryLock(), "await должен был отпустить лок");
+        assertTrue(mutex.tryLock(), "await should have released the lock");
         try {
             flag.set(true);
             ready.signal();
@@ -216,7 +216,7 @@ class MutexTest {
     }
 
     @Test
-    @DisplayName("Condition без лока бросает IllegalMonitorStateException")
+    @DisplayName("Condition without the lock throws IllegalMonitorStateException")
     void conditionWithoutLock() {
         Condition c = mutex.newCondition();
         assertThrows(IllegalMonitorStateException.class, c::signal);

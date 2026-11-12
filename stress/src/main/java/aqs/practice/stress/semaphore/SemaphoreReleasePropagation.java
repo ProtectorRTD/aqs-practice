@@ -12,13 +12,13 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Два ждущих по одному разрешению, один release(2). Оба должны пройти:
- * проверяет, что tryAcquireShared сообщает AQS «осталось ещё» и пробуждение идёт дальше по очереди.
- * Второго ждущего актор запускает сам (Termination разрешает одного актора).
+ * Two waiters needing one permit each, one release(2). Both must get through:
+ * checks that the wakeup is passed down the queue (shared-mode propagation).
+ * The actor starts the second waiter itself (Termination mode allows a single actor).
  */
 @JCStressTest(Mode.Termination)
-@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Оба ждущих прошли")
-@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Один из ждущих завис, хотя разрешений хватало")
+@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Both waiters got through")
+@Outcome(id = "STALE", expect = FORBIDDEN, desc = "One of the waiters hung although there were enough permits")
 @State
 public class SemaphoreReleasePropagation {
 
