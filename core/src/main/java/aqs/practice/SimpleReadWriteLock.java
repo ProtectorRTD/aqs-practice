@@ -46,7 +46,9 @@ public class SimpleReadWriteLock implements ReadWriteLock {
         return sync.getWl();
     }
 
-    /** How many read holds are currently held. */
+    /**
+     * How many read holds are currently held.
+     */
     public int getReadLockCount() {
         return sync.getReaderCount();
     }
@@ -59,7 +61,9 @@ public class SimpleReadWriteLock implements ReadWriteLock {
         return sync.isWriterHolded();
     }
 
-    /** Approximate number of threads waiting in the queue (readers and writers together). */
+    /**
+     * Approximate number of threads waiting in the queue (readers and writers together).
+     */
     public int getQueueLength() {
         return sync.getQueueLength();
     }
@@ -69,7 +73,7 @@ public class SimpleReadWriteLock implements ReadWriteLock {
         private final Lock rl;
         private final Lock wl;
 
-        public Sync () {
+        public Sync() {
             super();
             this.rl = new ReaderLock(this);
             this.wl = new WriterLock(this);
@@ -77,21 +81,18 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
         @Override
         protected boolean tryAcquire(int arg) {
-            while (true) {
-                if (isHeldExclusively()) {
-                    int state = getState();
-                    int writerCount = getWriterCount(state);
-                    if (writerCount >= 1) {
-                        return false;
-                    }
-
-                    if (compareAndSetState(state, incrementWriter(state))) {
-                        setExclusiveOwnerThread(Thread.currentThread());
-                        return true;
-                    }
+            int state = getState();
+            if (getReaderCount(state) == 0) {
+                int writerCount = getWriterCount(state);
+                if (writerCount >= 1) {
+                    return false;
                 }
-                return false;
+                if (compareAndSetState(state, incrementWriter(state))) {
+                    setExclusiveOwnerThread(Thread.currentThread());
+                    return true;
+                }
             }
+            return false;
         }
 
         @Override
@@ -203,13 +204,7 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
         @Override
         protected boolean isHeldExclusively() {
-            if (getWriterCount() > 0) {
-                if (Thread.currentThread() == getExclusiveOwnerThread()) {
-                    return true;
-                }
-                return false;
-            }
-            if (getReaderCount() == 0) {
+            if (Thread.currentThread() == getExclusiveOwnerThread()) {
                 return true;
             }
             return false;
@@ -228,6 +223,7 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
     public static class ReaderLock implements Lock {
         private final Sync sync;
+
         public ReaderLock(Sync sync) {
             this.sync = sync;
         }
@@ -266,6 +262,7 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
     public static class WriterLock implements Lock {
         private final Sync sync;
+
         public WriterLock(Sync sync) {
             this.sync = sync;
         }
