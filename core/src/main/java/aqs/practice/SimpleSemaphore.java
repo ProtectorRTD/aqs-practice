@@ -191,7 +191,7 @@ public class SimpleSemaphore {
         }
 
         @Override
-        protected boolean tryRelease(int arg) {
+        protected boolean tryReleaseShared(int arg) {
             while (true) {
                 int state = getState();
                 if (compareAndSetState(state, state - arg))
@@ -200,21 +200,22 @@ public class SimpleSemaphore {
         }
 
         @Override
-        protected boolean tryAcquire(int arg) {
+        protected int tryAcquireShared(int arg) {
             while (true) {
                 int state = getState();
                 if (hasQueuedPredecessors() || arg > (permits - state))
-                    return false;
-                boolean cas = compareAndSetState(state, state + arg);
+                    return -1;
+                int update = state + arg;
+                boolean cas = compareAndSetState(state, update);
                 if (cas) {
-                    return true;
+                    return 1;
                 }
             }
         }
 
         @Override
         public boolean tryAcquireTimeoutSemaphore(long timeout, TimeUnit unit) throws InterruptedException {
-            return tryAcquireNanos(1, unit.toNanos(timeout));
+            return tryAcquireSharedNanos(1, unit.toNanos(timeout));
         }
 
         @Override
@@ -230,17 +231,17 @@ public class SimpleSemaphore {
 
         @Override
         public void releaseSemaphore(int permits) {
-            release(permits);
+            releaseShared(permits);
         }
 
         @Override
         public void acquireUninterruptiblySemaphore(int permits) {
-            acquire(permits);
+            acquireShared(permits);
         }
 
         @Override
         public void acquireSemaphore(int permits) throws InterruptedException {
-            acquireInterruptibly(permits);
+            acquireSharedInterruptibly(permits);
         }
     }
 }
