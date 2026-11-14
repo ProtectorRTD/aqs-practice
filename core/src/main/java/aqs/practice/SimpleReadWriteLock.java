@@ -102,8 +102,8 @@ public class SimpleReadWriteLock implements ReadWriteLock {
                     if (state == 0) {
                         throw new IllegalMonitorStateException();
                     }
+                    setExclusiveOwnerThread(null);
                     if (compareAndSetState(state, decrementWriter(state))) {
-                        setExclusiveOwnerThread(null);
                         return true;
                     }
                 }
@@ -250,8 +250,7 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
         @Override
         public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-            sync.tryAcquireSharedNanos(1, unit.toNanos(time));
-            return true;
+            return sync.tryAcquireSharedNanos(1, unit.toNanos(time));
         }
 
         @Override
