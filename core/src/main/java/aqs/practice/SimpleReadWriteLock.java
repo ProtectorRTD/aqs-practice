@@ -1,5 +1,8 @@
 package aqs.practice;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -31,34 +34,168 @@ import java.util.concurrent.locks.ReadWriteLock;
  * </ul>
  */
 public class SimpleReadWriteLock implements ReadWriteLock {
+    private static final int WRITER_FLAG = 65536;
+    private static final int MAX_READERS_COUNT = 65535;
 
-    // TODO: one Sync extends AbstractQueuedSynchronizer and two kinds of Lock on top of it
+    private final static class Sync extends AbstractQueuedSynchronizer {
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            int state = getState();
+            if (state == MAX_READERS_COUNT)
+                throw new Error("Overflow of the state.");
+            if (state >= WRITER_FLAG)
+                return -1;
+            if (!getExclusiveQueuedThreads().isEmpty() && hasQueuedPredecessors())
+                return -1;
+            return compareAndSetState(state, state + 1) ? 1 : -1;
+        }
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            if (compareAndSetState(0, WRITER_FLAG)) {
+                setExclusiveOwnerThread(Thread.currentThread());
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (!Thread.currentThread().equals(getExclusiveOwnerThread()))
+                throw new IllegalMonitorStateException("Not a lock owner.");
+            setExclusiveOwnerThread(null);
+            setState(0);
+            return true;
+        }
+
+        @Override
+        protected boolean tryReleaseShared(int arg) {
+            if (getExclusiveOwnerThread() != null)
+                throw new IllegalMonitorStateException("Writer holds the lock.");
+            while (true) {
+                int state = getState();
+                if (state == 0)
+                    throw new IllegalMonitorStateException("No readers hold the lock.");
+                if (compareAndSetState(state, state - 1))
+                    break;
+            }
+            return true;
+        }
+
+        public int getReadLockCount() {
+            if (getState() >= WRITER_FLAG)
+                return 0;
+            return getState();
+        }
+
+        public Thread getWriteLockOwnerThread() {
+            return getExclusiveOwnerThread();
+        }
+    }
+
+    private record ReadLock(Sync sync) implements Lock {
+        @Override
+        public void lock() {
+            sync.acquireShared(0);
+        }
+
+        @Override
+        public void lockInterruptibly() throws InterruptedException {
+            sync.acquireSharedInterruptibly(0);
+        }
+
+        @Override
+        public boolean tryLock() {
+            try {
+                return sync.tryAcquireSharedNanos(0, 0);
+            } catch (InterruptedException e) {
+                return false;
+            }
+        }
+
+        @Override
+        public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+            return sync.tryAcquireSharedNanos(0, unit.toNanos(time));
+        }
+
+        @Override
+        public void unlock() {
+            sync.releaseShared(0);
+        }
+
+        @Override
+        public Condition newCondition() {
+            throw new UnsupportedOperationException("Condition is not supported.");
+        }
+    }
+
+    private record WriteLock(Sync sync) implements Lock {
+
+        @Override
+        public void lock() {
+            sync.acquire(0);
+        }
+
+        @Override
+        public void lockInterruptibly() throws InterruptedException {
+            sync.acquireInterruptibly(0);
+        }
+
+        @Override
+        public boolean tryLock() {
+            try {
+                return sync.tryAcquireNanos(0, 0);
+            } catch (InterruptedException e) {
+                return false;
+            }
+        }
+
+        @Override
+        public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
+            return sync.tryAcquireNanos(0, unit.toNanos(time));
+        }
+
+        @Override
+        public void unlock() {
+            sync.release(1);
+        }
+
+        @Override
+        public Condition newCondition() {
+            throw new UnsupportedOperationException("Condition is not supported.");
+        }
+    }
+
+    private final Sync sync = new Sync();
+    private final ReadLock readLock = new ReadLock(sync);
+    private final WriteLock writeLock = new WriteLock(sync);
 
     @Override
     public Lock readLock() {
-        throw new NotImplementedYet();
+        return readLock;
     }
 
     @Override
     public Lock writeLock() {
-        throw new NotImplementedYet();
+        return writeLock;
     }
 
     /** How many read holds are currently held. */
     public int getReadLockCount() {
-        throw new NotImplementedYet();
+        return sync.getReadLockCount();
     }
 
     public boolean isWriteLocked() {
-        throw new NotImplementedYet();
+        return sync.getWriteLockOwnerThread() != null;
     }
 
     public boolean isWriteLockedByCurrentThread() {
-        throw new NotImplementedYet();
+        return Thread.currentThread().equals(sync.getWriteLockOwnerThread());
     }
 
     /** Approximate number of threads waiting in the queue (readers and writers together). */
     public int getQueueLength() {
-        throw new NotImplementedYet();
+        return sync.getQueueLength();
     }
 }
