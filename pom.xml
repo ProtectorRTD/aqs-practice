@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <name>AQS practice</name>
-    <description>Свои синхронизаторы поверх AbstractQueuedSynchronizer + JUnit и jcstress тесты</description>
+    <description>Custom synchronizers on top of AbstractQueuedSynchronizer + JUnit and jcstress tests</description>
 
     <modules>
         <module>core</module>

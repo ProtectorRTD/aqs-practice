@@ -53,9 +53,9 @@ Summary is printed at the end (`Failed tests: ...`), HTML report goes to `result
 |---|---|
 | `mutex` | mutual exclusion, atomic block (happens-before), `tryLock` arbitration, `Condition` wakeup |
 | `latch` | wakeup, two waiters woken by one signal, data publication via `signal`/`await` |
-| `semaphore` | `tryAcquire` with three threads (nonfair and fair), semaphore as mutex, wakeup, `release(2)` waking two |
-| `reentrant` | mutual exclusion with nested locking (nonfair and fair), `tryLock`, `await` with nested holds |
-| `rwlock` | exclusive writers, reader sees whole write, shared readers, writer vs reader |
+| `semaphore` | `tryAcquire` with three threads (nonfair and fair), semaphore as mutex, wakeup, `release(2)` waking two (nonfair and fair) |
+| `reentrant` | mutual exclusion with nested locking (nonfair and fair), `tryLock`, `await` with nested holds (nonfair and fair) |
+| `rwlock` | exclusive writers, reader sees whole write, shared readers, writer vs reader, writer keeps ownership until its own unlock |
 
 `Mode.Termination` tests check that a thread wakes up at all; `STALE` means it hung.
 

@@ -11,12 +11,12 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Два читателя одновременно делают tryLock на свободном локе.
- * Оба обязаны пройти: CAS одного из них может проиграть, и это не повод отказывать.
+ * Two readers call tryLock on a free lock at the same time.
+ * Both must get in: one of their CASes may lose, and that is no reason to refuse.
  */
 @JCStressTest
-@Outcome(id = "true, true", expect = ACCEPTABLE, desc = "Оба читателя внутри")
-@Outcome(expect = FORBIDDEN, desc = "Читателю отказали без писателя: ложная неудача на CAS")
+@Outcome(id = "true, true", expect = ACCEPTABLE, desc = "Both readers are inside")
+@Outcome(expect = FORBIDDEN, desc = "A reader was refused with no writer around: spurious failure on CAS")
 @State
 public class RwReadersShareTryLock {
 

@@ -4,28 +4,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
- * Уровень 3. Счётный семафор с честным и нечестным режимом.
+ * Level 3. Counting semaphore with fair and nonfair modes.
  *
- * <p>Режим AQS: shared.
+ * <p>AQS mode: shared.
  *
- * <h2>Контракт</h2>
+ * <h2>Contract</h2>
  * <ul>
- *   <li>Конструктор с отрицательным числом разрешений бросает {@link IllegalArgumentException}.
- *       Отрицательный аргумент в {@code acquire(n)}/{@code tryAcquire(n)}/{@code release(n)} тоже.</li>
- *   <li>Число выданных одновременно разрешений никогда не превышает доступного.</li>
- *   <li>{@code tryAcquire} возвращает {@code false} только если разрешений реально не хватает
- *       (или, в честном режиме, есть очередь) — не из-за проигранного CAS.</li>
- *   <li>{@code release(n)} может будить сразу несколько ждущих, если им хватает разрешений.</li>
- *   <li>Владельца у разрешений нет: отпустить может любой поток, даже тот, кто ничего не брал.</li>
- *   <li><b>Честный режим</b>: никто не обгоняет очередь. В том числе {@link #tryAcquire()} возвращает
- *       {@code false}, если в очереди уже кто-то ждёт, даже когда свободных разрешений хватает.
- *       (Это сознательно отличается от JDK, где {@code tryAcquire()} обгоняет очередь всегда.)</li>
- *   <li><b>Нечестный режим</b> (по умолчанию): {@code tryAcquire} берёт разрешения, если их хватает,
- *       независимо от очереди.</li>
- *   <li>Всё, что поток записал до {@code release()}, видно потоку, который после этого сделал {@code acquire()}.</li>
+ *   <li>The constructor throws {@link IllegalArgumentException} for a negative number of permits.
+ *       So does a negative argument to {@code acquire(n)}/{@code tryAcquire(n)}/{@code release(n)}.</li>
+ *   <li>The number of permits handed out at once never exceeds what is available.</li>
+ *   <li>{@code tryAcquire} returns {@code false} only if there really are not enough permits
+ *       (or, in fair mode, there is a queue), never because of a lost CAS.</li>
+ *   <li>{@code release(n)} may wake several waiters at once if there are enough permits for them.
+ *       This holds in <b>both</b> modes.</li>
+ *   <li>Permits have no owner: any thread may release, even one that never acquired anything.</li>
+ *   <li><b>Fair mode</b>: nobody overtakes the queue. In particular {@link #tryAcquire()} returns
+ *       {@code false} if someone is already waiting in the queue, even when there are enough free permits.
+ *       (This deliberately differs from the JDK, where {@code tryAcquire()} always barges.)</li>
+ *   <li><b>Nonfair mode</b> (default): {@code tryAcquire} takes permits if there are enough of them,
+ *       regardless of the queue.</li>
+ *   <li>Everything a thread wrote before {@code release()} is visible to a thread that called {@code acquire()} after it.</li>
  * </ul>
  *
- * <p>Подсказка по форме: см., как {@code ReentrantLock} разделяет fair/nonfair на два подкласса AQS.
+ * <p>Hint on structure: see how {@code ReentrantLock} splits fair/nonfair into two AQS subclasses.
  */
 // TODO: разнциа между release/releaseShared
 public class SimpleSemaphore {
@@ -161,7 +162,7 @@ public class SimpleSemaphore {
         return sync instanceof FairSync;
     }
 
-    /** Примерное число потоков в очереди ожидания. */
+    /** Approximate number of threads waiting in the queue. */
     public int getQueueLength() {
         return sync.getQueueLength();
     }

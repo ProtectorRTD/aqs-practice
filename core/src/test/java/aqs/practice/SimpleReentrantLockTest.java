@@ -3,6 +3,8 @@ package aqs.practice;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -20,49 +22,54 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Everything except barging must behave the same in both modes, so most tests run
+ * with {@code fair=false} and {@code fair=true}.
+ */
 @Timeout(30)
 class SimpleReentrantLockTest {
 
     @Test
-    @DisplayName("isFair отражает режим")
+    @DisplayName("isFair reflects the mode")
     void fairnessFlag() {
         assertFalse(new SimpleReentrantLock().isFair());
         assertFalse(new SimpleReentrantLock(false).isFair());
         assertTrue(new SimpleReentrantLock(true).isFair());
     }
 
-    @Test
-    @DisplayName("Повторный захват увеличивает hold count, освобождение — только после стольких же unlock")
-    void reentrancy() {
-        for (boolean fair : new boolean[]{false, true}) {
-            SimpleReentrantLock lock = new SimpleReentrantLock(fair);
-            assertEquals(0, lock.getHoldCount());
-            lock.lock();
-            lock.lock();
-            assertTrue(lock.tryLock(), "fair=" + fair + ": владелец должен проходить повторно");
-            assertEquals(3, lock.getHoldCount());
-            lock.unlock();
-            lock.unlock();
-            assertTrue(lock.isLocked());
-            assertEquals(1, lock.getHoldCount());
-            lock.unlock();
-            assertFalse(lock.isLocked());
-            assertEquals(0, lock.getHoldCount());
-            assertFalse(lock.isHeldByCurrentThread());
-        }
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("Reacquiring increases the hold count; the lock is released only after as many unlocks")
+    void reentrancy(boolean fair) {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
+        assertEquals(0, lock.getHoldCount());
+        lock.lock();
+        lock.lock();
+        assertTrue(lock.tryLock(), "the owner must be able to reacquire");
+        assertEquals(3, lock.getHoldCount());
+        lock.unlock();
+        lock.unlock();
+        assertTrue(lock.isLocked());
+        assertEquals(1, lock.getHoldCount());
+        lock.unlock();
+        assertFalse(lock.isLocked());
+        assertEquals(0, lock.getHoldCount());
+        assertFalse(lock.isHeldByCurrentThread());
     }
 
-    @Test
-    @DisplayName("unlock без захвата бросает IllegalMonitorStateException")
-    void unlockWithoutHolding() {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("unlock without holding throws IllegalMonitorStateException")
+    void unlockWithoutHolding(boolean fair) {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         assertThrows(IllegalMonitorStateException.class, lock::unlock);
     }
 
-    @Test
-    @DisplayName("unlock чужого лока бросает IllegalMonitorStateException и не отпускает лок")
-    void unlockByNonOwner() throws Exception {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("unlock of someone else's lock throws IllegalMonitorStateException and does not release it")
+    void unlockByNonOwner(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         try (LockHolder ignored = LockHolder.hold(lock)) {
             assertThrows(IllegalMonitorStateException.class, lock::unlock);
             assertTrue(lock.isLocked());
@@ -73,10 +80,11 @@ class SimpleReentrantLockTest {
         assertFalse(lock.isLocked());
     }
 
-    @Test
-    @DisplayName("Ждущий проходит только после полного освобождения")
-    void waiterProceedsAfterFullRelease() throws Exception {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("A waiter proceeds only after a full release")
+    void waiterProceedsAfterFullRelease(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         lock.lock();
         lock.lock();
         TestThreads.Worker w = start("waiter", () -> {
@@ -91,10 +99,11 @@ class SimpleReentrantLockTest {
         assertFalse(lock.isLocked());
     }
 
-    @Test
-    @DisplayName("lockInterruptibly отвечает на прерывание")
-    void lockInterruptibly() throws Exception {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("lockInterruptibly responds to interruption")
+    void lockInterruptibly(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         lock.lock();
         AtomicBoolean interrupted = new AtomicBoolean();
         TestThreads.Worker w = start("interruptible", () -> {
@@ -114,10 +123,11 @@ class SimpleReentrantLockTest {
         lock.unlock();
     }
 
-    @Test
-    @DisplayName("tryLock с таймаутом возвращает false, если лок занят")
-    void tryLockTimesOut() throws Exception {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("Timed tryLock returns false if the lock is held")
+    void tryLockTimesOut(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         try (LockHolder ignored = LockHolder.hold(lock)) {
             assertFalse(lock.tryLock(30, TimeUnit.MILLISECONDS));
         }
@@ -125,14 +135,16 @@ class SimpleReentrantLockTest {
         lock.unlock();
     }
 
-    @Test
-    @DisplayName("await полностью отпускает лок и восстанавливает hold count")
-    void awaitReleasesFullyAndRestoresHoldCount() throws Exception {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("await releases the lock fully and restores the hold count")
+    void awaitReleasesFullyAndRestoresHoldCount(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         Condition cond = lock.newCondition();
         AtomicBoolean flag = new AtomicBoolean();
         AtomicInteger holdAfterAwait = new AtomicInteger(-1);
         TestThreads.Worker w = start("awaiter", () -> {
+            lock.lock();
             lock.lock();
             lock.lock();
             try {
@@ -143,10 +155,11 @@ class SimpleReentrantLockTest {
             } finally {
                 lock.unlock();
                 lock.unlock();
+                lock.unlock();
             }
         });
         awaitParked(w);
-        assertTrue(lock.tryLock(), "await должен полностью отпустить лок, даже захваченный дважды");
+        assertTrue(lock.tryLock(), "await must release the lock fully, even when it is held three times");
         try {
             flag.set(true);
             cond.signal();
@@ -154,14 +167,15 @@ class SimpleReentrantLockTest {
             lock.unlock();
         }
         w.joinOk();
-        assertEquals(2, holdAfterAwait.get(), "после await hold count должен восстановиться");
+        assertEquals(3, holdAfterAwait.get(), "the hold count must be restored after await");
         assertFalse(lock.isLocked());
     }
 
-    @Test
-    @DisplayName("signal будит одного, signalAll — всех")
-    void signalVsSignalAll() throws Exception {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("signal wakes one, signalAll wakes all")
+    void signalVsSignalAll(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         Condition cond = lock.newCondition();
         AtomicInteger permits = new AtomicInteger();
         AtomicInteger finished = new AtomicInteger();
@@ -191,9 +205,9 @@ class SimpleReentrantLockTest {
         } finally {
             lock.unlock();
         }
-        awaitCondition(() -> finished.get() == 1, "signal должен был разбудить одного");
+        awaitCondition(() -> finished.get() == 1, "signal should have woken one waiter");
         Thread.sleep(50);
-        assertEquals(1, finished.get(), "signal разбудил больше одного ждущего");
+        assertEquals(1, finished.get(), "signal woke more than one waiter");
 
         lock.lock();
         try {
@@ -208,10 +222,11 @@ class SimpleReentrantLockTest {
         assertEquals(3, finished.get());
     }
 
-    @Test
-    @DisplayName("Condition без лока бросает IllegalMonitorStateException")
-    void conditionWithoutLock() {
-        SimpleReentrantLock lock = new SimpleReentrantLock();
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("Condition without the lock throws IllegalMonitorStateException")
+    void conditionWithoutLock(boolean fair) {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
         Condition c = lock.newCondition();
         assertThrows(IllegalMonitorStateException.class, c::signal);
         assertThrows(IllegalMonitorStateException.class, c::signalAll);
@@ -219,7 +234,7 @@ class SimpleReentrantLockTest {
     }
 
     @Test
-    @DisplayName("Честный режим: сразу после unlock чужой tryLock не обгоняет ждущего")
+    @DisplayName("Fair mode: right after unlock, another thread's tryLock does not overtake the waiter")
     void fairDoesNotBarge() throws Exception {
         SimpleReentrantLock lock = new SimpleReentrantLock(true);
         for (int round = 0; round < 20; round++) {
@@ -228,7 +243,7 @@ class SimpleReentrantLockTest {
             TestThreads.Worker w = start("queued-" + round, () -> {
                 lock.lock();
                 try {
-                    // держим лок, пока основной поток не сделал проверку
+                    // hold the lock until the main thread has done its check
                     checked.await(TestThreads.TIMEOUT_MS, TimeUnit.MILLISECONDS);
                 } finally {
                     lock.unlock();
@@ -237,49 +252,48 @@ class SimpleReentrantLockTest {
             awaitQueueLength(lock::getQueueLength, 1);
             awaitParked(w);
             lock.unlock();
-            // Лок либо ещё свободен, но в очереди ждёт w, либо его уже держит w.
-            // В обоих случаях честный tryLock обязан вернуть false.
+            // The lock is either still free with w waiting in the queue, or already held by w.
+            // In both cases a fair tryLock must return false.
             boolean barged = lock.tryLock();
             if (barged) {
                 lock.unlock();
             }
             checked.countDown();
-            assertFalse(barged, "раунд " + round + ": честный лок не должен пускать без очереди");
+            assertFalse(barged, "round " + round + ": a fair lock must not let anyone skip the queue");
             w.joinOk();
         }
     }
 
-    @Test
-    @DisplayName("Счётчик под локом (с повторным захватом) не теряет инкременты")
-    void mutualExclusionCounter() throws Exception {
-        for (boolean fair : new boolean[]{false, true}) {
-            SimpleReentrantLock lock = new SimpleReentrantLock(fair);
-            int threads = 4;
-            int iterations = fair ? 3_000 : 20_000; // честный режим заметно медленнее под конкуренцией
-            int[] counter = {0};
-            TestThreads.Worker[] ws = new TestThreads.Worker[threads];
-            for (int i = 0; i < threads; i++) {
-                ws[i] = start("inc-" + i, () -> {
-                    for (int j = 0; j < iterations; j++) {
+    @ParameterizedTest(name = "fair={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("A counter under the lock (with reacquiring) loses no increments")
+    void mutualExclusionCounter(boolean fair) throws Exception {
+        SimpleReentrantLock lock = new SimpleReentrantLock(fair);
+        int threads = 4;
+        int iterations = fair ? 3_000 : 20_000; // fair mode is noticeably slower under contention
+        int[] counter = {0};
+        TestThreads.Worker[] ws = new TestThreads.Worker[threads];
+        for (int i = 0; i < threads; i++) {
+            ws[i] = start("inc-" + i, () -> {
+                for (int j = 0; j < iterations; j++) {
+                    lock.lock();
+                    try {
                         lock.lock();
                         try {
-                            lock.lock();
-                            try {
-                                counter[0]++;
-                            } finally {
-                                lock.unlock();
-                            }
+                            counter[0]++;
                         } finally {
                             lock.unlock();
                         }
+                    } finally {
+                        lock.unlock();
                     }
-                });
-            }
-            for (TestThreads.Worker w : ws) {
-                w.joinOk();
-            }
-            assertEquals(threads * iterations, counter[0], "fair=" + fair);
-            assertFalse(lock.isLocked());
+                }
+            });
         }
+        for (TestThreads.Worker w : ws) {
+            w.joinOk();
+        }
+        assertEquals(threads * iterations, counter[0]);
+        assertFalse(lock.isLocked());
     }
 }

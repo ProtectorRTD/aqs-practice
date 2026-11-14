@@ -10,11 +10,11 @@ import org.openjdk.jcstress.infra.results.ZZ_Result;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** Писатель и читатель одновременно делают tryLock на свободном локе: ровно один проходит. */
+/** A writer and a reader call tryLock on a free lock at the same time: exactly one gets in. */
 @JCStressTest
-@Outcome(id = {"true, false", "false, true"}, expect = ACCEPTABLE, desc = "Прошёл ровно один")
-@Outcome(id = "true, true", expect = FORBIDDEN, desc = "Писатель и читатель внутри одновременно")
-@Outcome(id = "false, false", expect = FORBIDDEN, desc = "Ложная неудача: лок был свободен")
+@Outcome(id = {"true, false", "false, true"}, expect = ACCEPTABLE, desc = "Exactly one got in")
+@Outcome(id = "true, true", expect = FORBIDDEN, desc = "A writer and a reader are inside at the same time")
+@Outcome(id = "false, false", expect = FORBIDDEN, desc = "Spurious failure: the lock was free")
 @State
 public class RwWriterVsReaderTryLock {
 

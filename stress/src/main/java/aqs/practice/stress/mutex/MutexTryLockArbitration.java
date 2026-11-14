@@ -11,13 +11,13 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Два потока одновременно делают tryLock на свободном локе и не отпускают его.
- * Ровно один должен выиграть.
+ * Two threads call tryLock on a free lock at the same time and do not release it.
+ * Exactly one must win.
  */
 @JCStressTest
-@Outcome(id = {"true, false", "false, true"}, expect = ACCEPTABLE, desc = "Ровно один победитель")
-@Outcome(id = "true, true", expect = FORBIDDEN, desc = "Лок выдан двоим")
-@Outcome(id = "false, false", expect = FORBIDDEN, desc = "Ложная неудача: лок был свободен, но не достался никому")
+@Outcome(id = {"true, false", "false, true"}, expect = ACCEPTABLE, desc = "Exactly one winner")
+@Outcome(id = "true, true", expect = FORBIDDEN, desc = "The lock was given to two threads")
+@Outcome(id = "false, false", expect = FORBIDDEN, desc = "Spurious failure: the lock was free but nobody got it")
 @State
 public class MutexTryLockArbitration {
 

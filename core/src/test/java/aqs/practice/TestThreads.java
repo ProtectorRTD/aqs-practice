@@ -7,9 +7,9 @@ import java.util.function.IntSupplier;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * Утилиты для детерминированных многопоточных JUnit-тестов.
- * Никаких sleep «на удачу»: ждём наблюдаемого события (поток встал в очередь, поток завершился)
- * с жёстким таймаутом.
+ * Utilities for deterministic multithreaded JUnit tests.
+ * No "lucky" sleeps: we wait for an observable event (thread queued, thread finished)
+ * with a hard timeout.
  */
 final class TestThreads {
 
@@ -23,7 +23,7 @@ final class TestThreads {
         void run() throws Throwable;
     }
 
-    /** Поток, который запоминает исключение из тела, чтобы тест мог его проверить. */
+    /** A thread that remembers the exception thrown by its body so the test can check it. */
     static final class Worker extends Thread {
         private final Body body;
         private final AtomicReference<Throwable> error = new AtomicReference<>();
@@ -31,7 +31,7 @@ final class TestThreads {
         Worker(String name, Body body) {
             super(name);
             this.body = body;
-            setDaemon(true); // зависший поток не держит JVM после падения теста
+            setDaemon(true); // a hung thread does not keep the JVM alive after a failed test
         }
 
         @Override
@@ -43,15 +43,15 @@ final class TestThreads {
             }
         }
 
-        /** Ждёт завершения; падает, если поток не завершился или бросил исключение. */
+        /** Waits for completion; fails if the thread did not finish or threw an exception. */
         void joinOk() throws InterruptedException {
             join(TIMEOUT_MS);
             if (isAlive()) {
-                fail("Поток " + getName() + " не завершился за " + TIMEOUT_MS + " мс (потерянный сигнал?)");
+                fail("Thread " + getName() + " did not finish in " + TIMEOUT_MS + " ms (lost wakeup?)");
             }
             Throwable t = error.get();
             if (t != null) {
-                throw new AssertionError("Поток " + getName() + " бросил исключение", t);
+                throw new AssertionError("Thread " + getName() + " threw an exception", t);
             }
         }
 
@@ -66,41 +66,41 @@ final class TestThreads {
         return w;
     }
 
-    /** Ждёт, пока в очереди синхронизатора окажется не меньше {@code expected} потоков. */
+    /** Waits until at least {@code expected} threads are in the synchronizer's queue. */
     static void awaitQueueLength(IntSupplier queueLength, int expected) throws InterruptedException {
         awaitCondition(() -> queueLength.getAsInt() >= expected,
-                "в очереди не появилось " + expected + " потоков");
+                expected + " threads did not show up in the queue");
     }
 
     static void awaitCondition(BooleanSupplier condition, String message) throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT_MS * 1_000_000L;
         while (!condition.getAsBoolean()) {
             if (System.nanoTime() > deadline) {
-                fail("Не дождались за " + TIMEOUT_MS + " мс: " + message);
+                fail("Gave up waiting after " + TIMEOUT_MS + " ms: " + message);
             }
             Thread.sleep(1);
         }
     }
 
-    /** Ждёт, пока поток реально уснёт (park), а не просто встанет в очередь. */
+    /** Waits until the thread actually parks, not merely joins the queue. */
     static void awaitParked(Thread t) throws InterruptedException {
         awaitCondition(() -> {
             Thread.State s = t.getState();
             return s == Thread.State.WAITING || s == Thread.State.TIMED_WAITING || s == Thread.State.TERMINATED;
-        }, "поток " + t.getName() + " не уснул");
+        }, "thread " + t.getName() + " did not park");
         if (!t.isAlive()) {
-            fail("Поток " + t.getName() + " должен был заблокироваться, но завершился");
+            fail("Thread " + t.getName() + " should have blocked, but it finished");
         }
     }
 
     /**
-     * Проверяет, что поток всё ещё не прошёл дальше. Это «отрицательная» проверка,
-     * поэтому она неизбежно с паузой: даём потоку шанс ошибочно проснуться.
+     * Checks that the thread has still not moved on. This is a "negative" check,
+     * so it necessarily involves a pause: we give the thread a chance to wake up by mistake.
      */
     static void assertStillBlocked(Thread t) throws InterruptedException {
         Thread.sleep(50);
         if (!t.isAlive()) {
-            fail("Поток " + t.getName() + " должен был остаться заблокированным, но завершился");
+            fail("Thread " + t.getName() + " should have stayed blocked, but it finished");
         }
     }
 }

@@ -11,10 +11,10 @@ import org.openjdk.jcstress.annotations.State;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** acquire() на пустом семафоре должен проснуться после release() из другого потока. */
+/** acquire() on an empty semaphore must wake up after release() from another thread. */
 @JCStressTest(Mode.Termination)
-@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Ждущий проснулся")
-@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Сигнал потерян, поток завис")
+@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "The awaiter woke up")
+@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Signal lost, the thread hung")
 @State
 public class SemaphoreReleaseWakeup {
 

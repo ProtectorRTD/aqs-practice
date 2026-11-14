@@ -11,10 +11,10 @@ import org.openjdk.jcstress.infra.results.II_Result;
 import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
-/** Семафор с одним разрешением как мьютекс: инкременты не теряются, разрешение возвращается. */
+/** A one-permit semaphore as a mutex: no increments are lost and the permit comes back. */
 @JCStressTest
-@Outcome(id = "2, 1", expect = ACCEPTABLE, desc = "Оба инкремента на месте, разрешение вернулось")
-@Outcome(expect = FORBIDDEN, desc = "Потерян инкремент или разрешение")
+@Outcome(id = "2, 1", expect = ACCEPTABLE, desc = "Both increments are there, the permit came back")
+@Outcome(expect = FORBIDDEN, desc = "An increment or a permit was lost")
 @State
 public class SemaphoreAsMutex {
 

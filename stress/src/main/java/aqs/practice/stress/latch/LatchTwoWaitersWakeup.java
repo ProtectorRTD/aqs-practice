@@ -12,13 +12,13 @@ import static org.openjdk.jcstress.annotations.Expect.ACCEPTABLE;
 import static org.openjdk.jcstress.annotations.Expect.FORBIDDEN;
 
 /**
- * Два ждущих, один signal(). Termination-режим jcstress разрешает только одного актора,
- * поэтому второго ждущего актор запускает сам. Ловит сломанную передачу пробуждения
- * по цепочке (propagation): проснётся один, второй зависнет.
+ * Two waiters, one signal(). jcstress Termination mode allows only one actor,
+ * so the actor starts the second waiter itself. Catches broken passing of the wakeup
+ * down the chain (propagation): one wakes up, the other hangs.
  */
 @JCStressTest(Mode.Termination)
-@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Оба ждущих проснулись")
-@Outcome(id = "STALE", expect = FORBIDDEN, desc = "Один из ждущих не проснулся")
+@Outcome(id = "TERMINATED", expect = ACCEPTABLE, desc = "Both waiters woke up")
+@Outcome(id = "STALE", expect = FORBIDDEN, desc = "One of the waiters did not wake up")
 @State
 public class LatchTwoWaitersWakeup {
 

@@ -20,7 +20,7 @@ class OneShotLatchTest {
     private final OneShotLatch latch = new OneShotLatch();
 
     @Test
-    @DisplayName("Новая защёлка закрыта")
+    @DisplayName("A new latch is closed")
     void initiallyClosed() throws Exception {
         assertFalse(latch.isSignalled());
         assertEquals(0, latch.getQueueLength());
@@ -28,17 +28,17 @@ class OneShotLatchTest {
     }
 
     @Test
-    @DisplayName("После signal() защёлка открыта навсегда")
+    @DisplayName("After signal() the latch is open forever")
     void signalOpens() throws Exception {
         latch.signal();
         assertTrue(latch.isSignalled());
-        latch.await(); // не должен блокироваться
+        latch.await(); // must not block
         assertTrue(latch.await(0, TimeUnit.MILLISECONDS));
         assertTrue(latch.isSignalled());
     }
 
     @Test
-    @DisplayName("Повторный signal() безопасен")
+    @DisplayName("A repeated signal() is safe")
     void signalIsIdempotent() throws Exception {
         latch.signal();
         latch.signal();
@@ -47,7 +47,7 @@ class OneShotLatchTest {
     }
 
     @Test
-    @DisplayName("Ждущий поток просыпается после signal()")
+    @DisplayName("A waiting thread wakes up after signal()")
     void waiterWakesUp() throws Exception {
         TestThreads.Worker w = start("waiter", latch::await);
         awaitQueueLength(latch::getQueueLength, 1);
@@ -57,7 +57,7 @@ class OneShotLatchTest {
     }
 
     @Test
-    @DisplayName("Один signal() будит ВСЕХ ждущих (shared-режим)")
+    @DisplayName("One signal() wakes ALL waiters (shared mode)")
     void signalWakesAllWaiters() throws Exception {
         int n = 6;
         TestThreads.Worker[] ws = new TestThreads.Worker[n];
@@ -76,7 +76,7 @@ class OneShotLatchTest {
     }
 
     @Test
-    @DisplayName("await с таймаутом дожидается signal() из другого потока")
+    @DisplayName("Timed await gets a signal() from another thread")
     void timedAwaitSucceeds() throws Exception {
         AtomicBoolean result = new AtomicBoolean();
         TestThreads.Worker w = start("timed", () ->
@@ -88,7 +88,7 @@ class OneShotLatchTest {
     }
 
     @Test
-    @DisplayName("await прерываемый, защёлка после этого по-прежнему закрыта")
+    @DisplayName("await is interruptible, and the latch stays closed afterwards")
     void awaitIsInterruptible() throws Exception {
         AtomicBoolean interrupted = new AtomicBoolean();
         TestThreads.Worker w = start("interruptible", () -> {
@@ -102,10 +102,10 @@ class OneShotLatchTest {
         awaitParked(w);
         w.interrupt();
         w.joinOk();
-        assertTrue(interrupted.get(), "ожидался InterruptedException");
+        assertTrue(interrupted.get(), "expected InterruptedException");
         assertFalse(latch.isSignalled());
 
-        // защёлка продолжает работать
+        // the latch keeps working
         TestThreads.Worker w2 = start("waiter-after", latch::await);
         awaitQueueLength(latch::getQueueLength, 1);
         latch.signal();

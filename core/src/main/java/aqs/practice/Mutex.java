@@ -6,28 +6,28 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
 /**
- * Уровень 1. Невозвратный (non-reentrant) взаимоисключающий лок.
+ * Level 1. Non-reentrant mutual exclusion lock.
  *
- * <p>Режим AQS: exclusive.
+ * <p>AQS mode: exclusive.
  *
- * <h2>Контракт</h2>
+ * <h2>Contract</h2>
  * <ul>
- *   <li>В каждый момент лок держит не больше одного потока.</li>
- *   <li>Лок невозвратный: если владелец снова вызывает {@link #tryLock()}, получает {@code false}
- *       (а {@link #lock()} в этой ситуации повиснет навсегда, и это ожидаемо).</li>
- *   <li>{@link #unlock()} из потока, который лок не держит, бросает
- *       {@link IllegalMonitorStateException}, и состояние лока при этом не меняется.</li>
- *   <li>{@link #tryLock()} возвращает {@code false} только если лок реально занят:
- *       «ложных» неудач из-за конкуренции быть не должно.</li>
- *   <li>Всё, что владелец записал до {@code unlock()}, видно следующему владельцу после {@code lock()}.</li>
- *   <li>{@link #newCondition()} работает: {@code await}/{@code signal} без лока бросают
+ *   <li>At most one thread holds the lock at any moment.</li>
+ *   <li>The lock is non-reentrant: if the owner calls {@link #tryLock()} again, it gets {@code false}
+ *       (and {@link #lock()} in that situation hangs forever, which is expected).</li>
+ *   <li>{@link #unlock()} from a thread that does not hold the lock throws
+ *       {@link IllegalMonitorStateException} and leaves the lock state unchanged.</li>
+ *   <li>{@link #tryLock()} returns {@code false} only if the lock is actually held:
+ *       no "spurious" failures caused by contention.</li>
+ *   <li>Everything the owner wrote before {@code unlock()} is visible to the next owner after {@code lock()}.</li>
+ *   <li>{@link #newCondition()} works: {@code await}/{@code signal} without holding the lock throw
  *       {@link IllegalMonitorStateException}.</li>
- *   <li>{@link #lockInterruptibly()} и {@link #tryLock(long, TimeUnit)} реагируют на прерывание
- *       ({@link InterruptedException}); таймаут возвращает {@code false}.</li>
+ *   <li>{@link #lockInterruptibly()} and {@link #tryLock(long, TimeUnit)} respond to interruption
+ *       ({@link InterruptedException}); a timeout returns {@code false}.</li>
  * </ul>
  *
- * <p>Подсказка по форме: публичный класс — тонкая обёртка, вся логика в приватном
- * {@code Sync extends AbstractQueuedSynchronizer}. Какие методы AQS переопределять, решайте сами.
+ * <p>Hint on structure: the public class is a thin wrapper, all logic lives in a private
+ * {@code Sync extends AbstractQueuedSynchronizer}. Which AQS methods to override is up to you.
  */
 public class Mutex implements Lock {
 
@@ -99,17 +99,17 @@ public class Mutex implements Lock {
         return sync.new ConditionObject();
     }
 
-    /** Занят ли лок каким-либо потоком. */
+    /** Whether the lock is held by any thread. */
     public boolean isLocked() {
         return sync.currentThread != null;
     }
 
-    /** Держит ли лок текущий поток. */
+    /** Whether the current thread holds the lock. */
     public boolean isHeldByCurrentThread() {
         return Thread.currentThread().equals(sync.currentThread);
     }
 
-    /** Примерное число потоков в очереди ожидания (для тестов и мониторинга). */
+    /** Approximate number of threads waiting in the queue (for tests and monitoring). */
     public int getQueueLength() {
         return sync.getQueueLength();
     }
