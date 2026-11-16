@@ -41,14 +41,17 @@ public class SimpleReadWriteLock implements ReadWriteLock {
 
         @Override
         protected int tryAcquireShared(int arg) {
-            int state = getState();
-            if (state == MAX_READERS_COUNT)
-                throw new Error("Overflow of the state.");
-            if (state >= WRITER_FLAG)
-                return -1;
-            if (!getExclusiveQueuedThreads().isEmpty() && hasQueuedPredecessors())
-                return -1;
-            return compareAndSetState(state, state + 1) ? 1 : -1;
+            while (true) {
+                int state = getState();
+                if (state == MAX_READERS_COUNT)
+                    throw new Error("Overflow of the state.");
+                if (state >= WRITER_FLAG)
+                    return -1;
+                if (!getExclusiveQueuedThreads().isEmpty() && hasQueuedPredecessors())
+                    return -1;
+                if (compareAndSetState(state, state + 1))
+                    return 1;
+            }
         }
 
         @Override
